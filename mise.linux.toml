@@ -1,0 +1,2 @@
+[env]
+ANDROID_HOME = "$HOME/Android/Sdk"

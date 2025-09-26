@@ -1,0 +1,102 @@
+[tools]
+node = "22.20.0"
+java = "openjdk-17"
+"npm:eas-cli" = "latest"
+
+[env]
+PATH = "$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools"
+
+[hooks]
+postinstall = "npm install"
+
+[tasks.install]
+description = "Install all dependencies"
+run = "npm install"
+
+[tasks.start]
+description = "Starts the development server with the dev client"
+run = "npm run start"
+
+[tasks.android]
+description = "Builds the app and runs it on an Android emulator or connected device"
+run = "npm run android"
+
+[tasks.ios]
+description = "Builds the app and runs it on an iOS simulator or connected device"
+run = "npm run ios"
+
+[tasks.web]
+description = "Starts the development server for web"
+run = "npm run web"
+
+[tasks.bundle-web]
+description = "Creates a web production build in the 'dist' folder"
+run = "npm run bundle:web"
+
+[tasks.serve-web]
+description = "Serves the web production build from the 'dist' folder"
+run = "npm run serve:web"
+
+[tasks.prebuild-clean]
+description = "Deletes and recreates the native 'android' and 'ios' folders"
+run = "npm run prebuild:clean"
+
+[tasks.compile]
+description = "Checks TypeScript types without emitting files"
+run = "npm run compile"
+
+[tasks.lint]
+description = "Lints the codebase and automatically fixes issues"
+run = "npm run lint"
+
+[tasks.lint-check]
+description = "Checks the codebase for linting errors without fixing them"
+run = "npm run lint:check"
+
+[tasks.align-deps]
+description = "Ensures all Expo package versions are consistent"
+run = "npm run align-deps"
+
+[tasks.test]
+description = "Runs all Jest tests"
+run = "npm run test"
+
+[tasks.test-watch]
+description = "Runs all Jest tests in watch mode"
+run = "npm run test:watch"
+
+[tasks.adb]
+description = "Sets up ADB reverse TCP ports for connecting to the device"
+run = "npm run adb"
+
+[tasks.build-ios-sim]
+description = "Creates a local build for the iOS simulator (development)"
+run = "npm run build:ios:sim"
+
+[tasks.build-ios-dev]
+description = "Creates a local build for a development iOS device"
+run = "npm run build:ios:dev"
+
+[tasks.build-ios-preview]
+description = "Creates a local build for iOS (preview)"
+run = "npm run build:ios:preview"
+
+[tasks.build-ios-prod]
+description = "Creates a local build for iOS (production)"
+run = "npm run build:ios:prod"
+
+[tasks.build-android-sim]
+description = "Creates a local build for the Android emulator (development)"
+run = "npm run build:android:sim"
+
+[tasks.build-android-dev]
+description = "Creates a local build for a development Android device"
+run = "npm run build:android:dev"
+
+[tasks.build-android-preview]
+description = "Creates a local build for Android (preview)"
+run = "npm run build:android:preview"
+
+[tasks.build-android-prod]
+description = "Creates a local build for Android (production)"
+run = "npm run build:android:prod"
