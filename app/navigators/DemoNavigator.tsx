@@ -10,6 +10,7 @@ import { DemoCommunityScreen } from "@/screens/DemoCommunityScreen"
 import { DemoDebugScreen } from "@/screens/DemoDebugScreen"
 import { DemoPodcastListScreen } from "@/screens/DemoPodcastListScreen"
 import { DemoShowroomScreen } from "@/screens/DemoShowroomScreen/DemoShowroomScreen"
+import { MapScreen } from "@/screens/MapScreen"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
@@ -20,6 +21,7 @@ export type DemoTabParamList = {
   DemoShowroom: { queryIndex?: string; itemIndex?: string }
   DemoDebug: undefined
   DemoPodcastList: undefined
+  DemoMap: undefined
 }
 
 /**
@@ -110,6 +112,17 @@ export function DemoNavigator() {
             tabBarLabel: translate("demoNavigator:debugTab"),
             tabBarIcon: ({ focused }) => (
               <Icon icon="debug" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="DemoMap"
+          component={MapScreen}
+          options={{
+            tabBarLabel: "Mapa",
+            tabBarIcon: ({ focused }) => (
+              <Icon icon="view" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
         />
