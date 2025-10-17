@@ -33,6 +33,9 @@ const palette = {
 
   overlay20: "rgba(25, 16, 21, 0.2)",
   overlay50: "rgba(25, 16, 21, 0.5)",
+
+  brandBlue: "#006FFD", // risco cor
+
 } as const
 
 export const colors = {
@@ -65,7 +68,7 @@ export const colors = {
   /**
    * The main tinting color.
    */
-  tint: palette.primary500,
+  tint: palette.brandBlue,
   /**
    * The inactive tinting color.
    */
