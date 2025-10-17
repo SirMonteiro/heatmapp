@@ -13,6 +13,13 @@ import { DemoShowroomScreen } from "@/screens/DemoShowroomScreen/DemoShowroomScr
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+
+import { TelaTeste } from "@/screens/TelaTeste";
+import { ConfiguracoesNavigator } from "./ConfiguracoesNavigator"
+import { Sobre } from "@/screens/Sobre";
+import { Loja } from "@/screens/Loja";
+
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
 export type DemoTabParamList = {
@@ -20,6 +27,9 @@ export type DemoTabParamList = {
   DemoShowroom: { queryIndex?: string; itemIndex?: string }
   DemoDebug: undefined
   DemoPodcastList: undefined
+  TelaTeste: undefined
+  Configuracoes: undefined
+  Loja: undefined
 }
 
 /**
@@ -113,6 +123,41 @@ export function DemoNavigator() {
             ),
           }}
         />
+
+        <Tab.Screen
+          name="TelaTeste"
+          component={TelaTeste}
+          options={{
+            tabBarLabel: ("TelaTeste"),
+            tabBarIcon: ({ focused }) => (
+              <Icon icon="debug" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Configuracoes"
+          component={ConfiguracoesNavigator}
+          options={{
+            tabBarLabel: ("Configurações"),
+            tabBarIcon: ({ focused }) => (
+              <Icon icon="settings" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            ),
+          }}
+        />
+
+
+        <Tab.Screen
+          name="Loja"
+          component={Loja}
+          options={{
+            tabBarLabel: ("Loja"),
+            tabBarIcon: ({ focused }) => (
+              <MaterialCommunityIcons name="store" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            ),
+          }}
+        />
+
       </Tab.Navigator>
     </EpisodeProvider>
   )
