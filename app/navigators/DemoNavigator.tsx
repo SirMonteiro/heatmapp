@@ -10,9 +10,10 @@ import { DemoCommunityScreen } from "@/screens/DemoCommunityScreen"
 import { DemoDebugScreen } from "@/screens/DemoDebugScreen"
 import { DemoPodcastListScreen } from "@/screens/DemoPodcastListScreen"
 import { DemoShowroomScreen } from "@/screens/DemoShowroomScreen/DemoShowroomScreen"
-import { MapScreen } from "@/screens/MapScreen"
+// import { MapScreen } from "@/screens/MapScreen"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
+import Feather from "@expo/vector-icons/Feather"
 
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 
@@ -20,6 +21,7 @@ import { TelaTeste } from "@/screens/TelaTeste"
 import { ConfiguracoesNavigator } from "./ConfiguracoesNavigator"
 import { Sobre } from "@/screens/Sobre"
 import { Loja } from "@/screens/Loja"
+import { Perfil } from "@/screens/Perfil"
 
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
@@ -32,6 +34,7 @@ export type DemoTabParamList = {
   TelaTeste: undefined
   Configuracoes: undefined
   Loja: undefined
+  Perfil: undefined
 }
 
 /**
@@ -126,7 +129,7 @@ export function DemoNavigator() {
           }}
         />
 
-        <Tab.Screen
+        {/*<Tab.Screen
           name="DemoMap"
           component={MapScreen}
           options={{
@@ -135,7 +138,7 @@ export function DemoNavigator() {
               <Icon icon="view" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
-        />
+        />*/}
         <Tab.Screen
           name="TelaTeste"
           component={TelaTeste}
@@ -169,6 +172,17 @@ export function DemoNavigator() {
                 color={focused ? colors.tint : colors.tintInactive}
                 size={30}
               />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Perfil"
+          component={Perfil}
+          options={{
+            tabBarLabel: "Perfil",
+            tabBarIcon: ({ focused }) => (
+              <Feather name="user" size={24} color={focused ? colors.tint : colors.tintInactive} />
             ),
           }}
         />
