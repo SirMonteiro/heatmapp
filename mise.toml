@@ -75,7 +75,7 @@ run = "npm run build:ios:sim"
 
 [tasks.build-ios-dev]
 description = "Creates a local build for a development iOS device"
-run = "npm run build:ios:dev"
+run = "npm run build:ios:device"
 
 [tasks.build-ios-preview]
 description = "Creates a local build for iOS (preview)"
