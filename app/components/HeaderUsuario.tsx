@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   container: {
-    height: 120,
+    height: 70,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
