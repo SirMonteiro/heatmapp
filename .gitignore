@@ -336,4 +336,15 @@ buck-out/
 .buckversion
 .fakebuckversion
 
+# Python / Django
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+*.sqlite3
+*.log
+
+
 # End of https://www.toptal.com/developers/gitignore/api/reactnative

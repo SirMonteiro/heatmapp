@@ -11,5 +11,5 @@ router.register(r'posts_ruido', PostRuidoViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('api/current_user/', CurrentUserView.as_view(), name='current_user'),
+    path('current_user/', CurrentUserView.as_view(), name='current_user'),
 ]

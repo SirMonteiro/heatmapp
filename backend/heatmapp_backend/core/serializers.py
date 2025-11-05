@@ -10,6 +10,7 @@ class IconeSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    email = serializers.CharField()
     
     class Meta:
         model = User

@@ -25,7 +25,9 @@ SECRET_KEY = 'django-insecure-2&6-l%rownk=&oeyyth$65rf6g&i2+#edvt+jlt^48o5y*7jp*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# coloca o ip aqui
+ALLOWED_HOSTS = ["*", "10.0.2.2", "localhost", "127.0.0.1"]
+
 
 
 # Application definition
@@ -40,6 +42,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework_simplejwt',
+    'corsheaders',
 
     'core',
 
@@ -55,6 +58,8 @@ REST_FRAMEWORK = {
 
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -63,6 +68,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8081",  # react local...
+    
+]
+
 
 ROOT_URLCONF = 'heatmapp_backend.urls'
 
