@@ -1,9 +1,19 @@
-import React, { useState } from "react"
-import { View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native"
-import { useAuth } from "../context/AuthContext" 
+import { FC, useState } from "react"
+import { Alert, TextStyle, ViewStyle } from "react-native"
 
+import { Button } from "@/components/Button"
+import { Screen } from "@/components/Screen"
+import { Text } from "@/components/Text"
+import { TextField } from "@/components/TextField"
+import { useAuth } from "@/context/AuthContext"
+import type { AppStackScreenProps } from "@/navigators/AppNavigator"
+import { api } from "@/services/api"
+import { useAppTheme } from "@/theme/context"
+import type { ThemedStyle } from "@/theme/types"
 
-export function RegisterScreen({ navigation }: any) {
+interface RegisterScreenProps extends AppStackScreenProps<"Register"> {}
+
+export const RegisterScreen: FC<RegisterScreenProps> = ({ navigation }) => {
   const [username, setUsername] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -12,7 +22,7 @@ export function RegisterScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false)
 
   const { login } = useAuth()
-  const API_URL = "" // coloca o ip:8000/api
+  const { themed } = useAppTheme()
 
   const validateFields = () => {
     if (!username || !firstName || !lastName || !email || !password) {
@@ -36,45 +46,37 @@ export function RegisterScreen({ navigation }: any) {
     }
 
     if (username.length > 15) {
-        Alert.alert("Erro, ", "O username deve ter menos de 15 caracteres.")
-        return false
+      Alert.alert("Erro", "O username deve ter menos de 15 caracteres.")
+      return false
     }
 
     return true
   }
 
   const handleRegister = async () => {
-    if (!validateFields()) return
+    if (!validateFields() || loading) return
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/usuarios/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          password,
-        }),
+      const response = await api.registerUser({
+        username,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password,
       })
 
-      if (response.ok) {
-        // ✅ Registro bem-sucedido
+      if (response.kind === "ok") {
         Alert.alert("Sucesso", "Usuário registrado com sucesso! Fazendo login...")
 
-        // Faz login automático
         const loginSuccess = await login(username, password)
-        if (loginSuccess) {
-          console.log("Login automático bem-sucedido!")
-        } else {
+
+        if (!loginSuccess) {
           Alert.alert("Erro", "Falha ao realizar login automático.")
           navigation.navigate("Login")
         }
       } else {
-        const errorData = await response.json()
-        console.error("Erro ao registrar:", errorData)
+        console.error("Erro ao registrar:", response.kind)
         Alert.alert("Erro", "Não foi possível registrar o usuário.")
       }
     } catch (err) {
@@ -86,102 +88,108 @@ export function RegisterScreen({ navigation }: any) {
   }
 
   return (
-    <ScrollView 
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}>
+    <Screen
+      preset="auto"
+      contentContainerStyle={themed($screenContentContainer)}
+      safeAreaEdges={["top", "bottom"]}
+    >
+      <Text text="Crie sua conta" preset="heading" style={themed($title)} />
+      <Text
+        text="Preencha suas informações para continuar"
+        preset="subheading"
+        style={themed($subtitle)}
+      />
 
-      <Text style={styles.title}>Crie sua conta</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nome de usuário"
+      <TextField
         value={username}
         onChangeText={setUsername}
+        label="Nome de usuário"
+        placeholder="Digite seu nome de usuário"
         autoCapitalize="none"
-        autoCorrect={false} 
+        autoCorrect={false}
+        autoComplete="username"
+        containerStyle={themed($textField)}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Primeiro nome"
+      <TextField
         value={firstName}
         onChangeText={setFirstName}
+        label="Primeiro nome"
+        placeholder="Digite seu primeiro nome"
+        autoCapitalize="words"
+        containerStyle={themed($textField)}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Sobrenome"
+      <TextField
         value={lastName}
         onChangeText={setLastName}
+        label="Sobrenome"
+        placeholder="Digite seu sobrenome"
+        autoCapitalize="words"
+        containerStyle={themed($textField)}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
+      <TextField
         value={email}
         onChangeText={setEmail}
+        label="Email"
+        placeholder="Digite seu email"
         autoCapitalize="none"
+        autoCorrect={false}
         keyboardType="email-address"
+        autoComplete="email"
+        containerStyle={themed($textField)}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
+      <TextField
         value={password}
         onChangeText={setPassword}
+        label="Senha"
+        placeholder="Digite uma senha"
         autoCapitalize="none"
-        autoCorrect={false} 
+        autoCorrect={false}
         secureTextEntry
+        containerStyle={themed($textField)}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? "Cadastrando..." : "Registrar"}</Text>
-      </TouchableOpacity>
+      <Button
+        text={loading ? "Cadastrando..." : "Registrar"}
+        onPress={handleRegister}
+        disabled={loading}
+        preset="reversed"
+        style={themed($primaryButton)}
+      />
 
-      <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-        <Text style={styles.link}>Já tem conta? Faça login</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <Button
+        text="Já tem conta? Faça login"
+        onPress={() => navigation.navigate("Login")}
+        style={themed($secondaryButton)}
+      />
+    </Screen>
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 30,
-  },
-  input: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 15,
-  },
-  button: {
-    backgroundColor: "#007bff",
-    paddingVertical: 14,
-    borderRadius: 10,
-    width: "100%",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  link: {
-    color: "#007bff",
-    marginTop: 20,
-  },
+const $screenContentContainer: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  paddingHorizontal: spacing.lg,
+  paddingVertical: spacing.xxl,
+})
+
+const $title: ThemedStyle<TextStyle> = ({ spacing }) => ({
+  marginBottom: spacing.xs,
+})
+
+const $subtitle: ThemedStyle<TextStyle> = ({ spacing }) => ({
+  marginBottom: spacing.lg,
+})
+
+const $textField: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  marginBottom: spacing.lg,
+})
+
+const $primaryButton: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  marginTop: spacing.md,
+})
+
+const $secondaryButton: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  marginTop: spacing.sm,
 })

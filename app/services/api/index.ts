@@ -8,7 +8,13 @@
 import { ApiResponse, ApisauceInstance, create } from "apisauce"
 
 import Config from "@/config"
-import type { EpisodeItem, LoginRequest, LoginResponse, UserData } from "@/services/api/types"
+import type {
+  EpisodeItem,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  UserData,
+} from "@/services/api/types"
 
 import { GeneralApiProblem, getGeneralApiProblem } from "./apiProblem"
 import type { ApiConfig, ApiFeedResponse } from "./types"
@@ -129,6 +135,14 @@ export class Api {
     return this.request<UserData>({
       method: "get",
       url: "current_user/",
+    })
+  }
+
+  async registerUser(payload: RegisterRequest): Promise<ApiResult<UserData>> {
+    return this.request<UserData>({
+      method: "post",
+      url: "usuarios/",
+      data: payload,
     })
   }
 }

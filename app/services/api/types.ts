@@ -69,3 +69,11 @@ export interface UserData {
   moedas: number
   id_icone: number
 }
+
+export interface RegisterRequest {
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  password: string
+}
