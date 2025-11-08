@@ -8,7 +8,7 @@
 import { ApiResponse, ApisauceInstance, create } from "apisauce"
 
 import Config from "@/config"
-import type { EpisodeItem } from "@/services/api/types"
+import type { EpisodeItem, LoginRequest, LoginResponse, UserData } from "@/services/api/types"
 
 import { GeneralApiProblem, getGeneralApiProblem } from "./apiProblem"
 import type { ApiConfig, ApiFeedResponse } from "./types"
@@ -21,6 +21,18 @@ export const DEFAULT_API_CONFIG: ApiConfig = {
   timeout: 10000,
 }
 
+type ApiMethod = "get" | "post" | "put" | "patch" | "delete"
+
+type ApiRequestConfig = {
+  url: string
+  method?: ApiMethod
+  data?: unknown
+  params?: Record<string, unknown>
+  headers?: Record<string, string>
+}
+
+type ApiResult<T> = { kind: "ok"; data: T } | GeneralApiProblem
+
 /**
  * Manages all requests to the API. You can use this class to build out
  * various requests that you need to call from your backend API.
@@ -29,9 +41,6 @@ export class Api {
   apisauce: ApisauceInstance
   config: ApiConfig
 
-  /**
-   * Set up our API instance. Keep this lightweight!
-   */
   constructor(config: ApiConfig = DEFAULT_API_CONFIG) {
     this.config = config
     this.apisauce = create({
@@ -44,19 +53,50 @@ export class Api {
   }
 
   /**
+   * Generic request helper used by the specific API methods.
+   */
+  async request<T>(config: ApiRequestConfig): Promise<ApiResult<T>> {
+    const response: ApiResponse<T> = await this.apisauce.any<T>({
+      method: config.method ?? "get",
+      url: config.url,
+      data: config.data,
+      params: config.params,
+      headers: config.headers,
+    })
+
+    if (!response.ok || typeof response.data === "undefined" || response.data === null) {
+      const problem = getGeneralApiProblem(response)
+      if (problem) return problem
+      return { kind: "bad-data" }
+    }
+
+    return { kind: "ok", data: response.data }
+  }
+
+  /**
+   * Sets or clears the Authorization header for subsequent requests.
+   */
+  setAuthToken(token?: string): void {
+    if (token) {
+      this.apisauce.setHeader("Authorization", `Bearer ${token}`)
+    } else {
+      this.apisauce.deleteHeader("Authorization")
+    }
+  }
+
+  /**
    * Gets a list of recent React Native Radio episodes.
    */
   async getEpisodes(): Promise<{ kind: "ok"; episodes: EpisodeItem[] } | GeneralApiProblem> {
-    // make the api call
-    const response: ApiResponse<ApiFeedResponse> = await this.apisauce.get(
-      `api.json?rss_url=https%3A%2F%2Ffeeds.simplecast.com%2FhEI_f9Dx`,
-    )
+    const response = await this.request<ApiFeedResponse>({
+      method: "get",
+      url: "api.json",
+      params: {
+        rss_url: "https://feeds.simplecast.com/hEI_f9Dx",
+      },
+    })
 
-    // the typical ways to die when calling an api
-    if (!response.ok) {
-      const problem = getGeneralApiProblem(response)
-      if (problem) return problem
-    }
+    if (response.kind !== "ok") return response
 
     // transform the data into the format we are expecting
     try {
@@ -75,6 +115,21 @@ export class Api {
       }
       return { kind: "bad-data" }
     }
+  }
+
+  async login(credentials: LoginRequest): Promise<ApiResult<LoginResponse>> {
+    return this.request<LoginResponse>({
+      method: "post",
+      url: "token/",
+      data: credentials,
+    })
+  }
+
+  async getCurrentUser(): Promise<ApiResult<UserData>> {
+    return this.request<UserData>({
+      method: "get",
+      url: "current_user/",
+    })
   }
 }
 

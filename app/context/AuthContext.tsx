@@ -1,18 +1,17 @@
-import { createContext, FC, PropsWithChildren, useCallback, useContext, useEffect, useState, useMemo } from "react"
+import {
+  createContext,
+  FC,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 import { useMMKVString } from "react-native-mmkv"
 
-// Dados pro current user!
-export type UserData = {
-  id: number
-  username: string
-  first_name: string
-  last_name: string
-  email: string
-  streak: number
-  moedas: number
-  id_icone: number
-}
-
+import { api } from "@/services/api"
+import type { UserData } from "@/services/api/types"
 
 export type AuthContextType = {
   isAuthenticated: boolean
@@ -41,28 +40,21 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
 
   const [currentUser, setCurrentUser] = useState<UserData | null>(null)
 
-  const API_URL = "http://192.168.15.151:8000/api" // coloca o ip:8000/api
-
   const login = useCallback(
     async (username: string, password: string): Promise<boolean> => {
       try {
         console.log(`Tentando login com username="${username}"`)
 
-        const response = await fetch(`${API_URL}/token/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        })
+        const response = await api.login({ username, password })
 
-        if (!response.ok) {
-          console.error("Falha no login:", response.status)
+        if (response.kind !== "ok") {
+          console.error("Falha no login:", response.kind)
           return false
         }
 
-        const data = await response.json()
-
         // Armazena token e username localmente
-        setAuthToken(data.access)
+        setAuthToken(response.data.access)
+        api.setAuthToken(response.data.access)
         setAuthUsername(username)
 
         return true
@@ -77,28 +69,21 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
   const fetchCurrentUser = useCallback(async () => {
     if (!authToken) return
     try {
-      const response = await fetch(`${API_URL}/current_user/`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-      })
+      const response = await api.getCurrentUser()
 
-      if (!response.ok) {
-        console.error("Erro ao buscar usuário:", response.status)
+      if (response.kind !== "ok") {
+        console.error("Erro ao buscar usuário:", response.kind)
         return
       }
 
-      const data = await response.json()
-      setCurrentUser(data)
+      setCurrentUser(response.data)
     } catch (err) {
       console.error("Erro ao buscar current user:", err)
     }
   }, [authToken])
-
-
   // Carrega current user automaticamente quando loga
   useEffect(() => {
+    api.setAuthToken(authToken)
     if (authToken) fetchCurrentUser()
   }, [authToken, fetchCurrentUser])
 
@@ -106,6 +91,8 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
     setAuthToken(undefined)
     //setAuthEmail("")
     setAuthUsername("")
+    api.setAuthToken(undefined)
+    setCurrentUser(null)
   }, [setAuthUsername, setAuthToken])
 
   const validationError = useMemo(() => {
@@ -115,21 +102,22 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
     //if (authEmail.length < 6) return "must be at least 6 characters"
 
     //if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail)) return "must be a valid email address"
-     //if (!/^[a-zA-Z0-9_]+$/.test(authUsername)) return "deve conter apenas letras, números ou _" NAO SEI PQ TA BUGANDO
+    //if (!/^[a-zA-Z0-9_]+$/.test(authUsername)) return "deve conter apenas letras, números ou _" NAO SEI PQ TA BUGANDO
     return ""
   }, [authUsername])
 
-const value = {
-  isAuthenticated: !!authToken,
-  authToken,
-  authUsername,
-  setAuthUsername,
-  setAuthToken,
-  login,
-  fetchCurrentUser,
-  logout,
-  validationError,
-}
+  const value = {
+    isAuthenticated: !!authToken,
+    authToken,
+    authUsername,
+    currentUser,
+    setAuthUsername,
+    setAuthToken,
+    login,
+    fetchCurrentUser,
+    logout,
+    validationError,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

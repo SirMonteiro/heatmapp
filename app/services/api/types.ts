@@ -48,3 +48,24 @@ export interface ApiConfig {
    */
   timeout: number
 }
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  access: string
+  refresh?: string
+}
+
+export interface UserData {
+  id: number
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  streak: number
+  moedas: number
+  id_icone: number
+}
