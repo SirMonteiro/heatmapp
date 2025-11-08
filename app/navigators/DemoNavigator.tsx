@@ -1,4 +1,6 @@
 import { TextStyle, ViewStyle } from "react-native"
+import Feather from "@expo/vector-icons/Feather"
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { BottomTabScreenProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { CompositeScreenProps } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -10,20 +12,16 @@ import { DemoCommunityScreen } from "@/screens/DemoCommunityScreen"
 import { DemoDebugScreen } from "@/screens/DemoDebugScreen"
 import { DemoPodcastListScreen } from "@/screens/DemoPodcastListScreen"
 import { DemoShowroomScreen } from "@/screens/DemoShowroomScreen/DemoShowroomScreen"
-// import { MapScreen } from "@/screens/MapScreen"
+import { Loja } from "@/screens/Loja"
+import { MapScreen } from "@/screens/MapScreen"
+import { Perfil } from "@/screens/Perfil"
+import { Sobre } from "@/screens/Sobre"
+import { TelaTeste } from "@/screens/TelaTeste"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
-import Feather from "@expo/vector-icons/Feather"
-
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
-
-import { TelaTeste } from "@/screens/TelaTeste"
-import { ConfiguracoesNavigator } from "./ConfiguracoesNavigator"
-import { Sobre } from "@/screens/Sobre"
-import { Loja } from "@/screens/Loja"
-import { Perfil } from "@/screens/Perfil"
 
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
+import { ConfiguracoesNavigator } from "./ConfiguracoesNavigator"
 
 export type DemoTabParamList = {
   DemoCommunity: undefined
@@ -129,7 +127,7 @@ export function DemoNavigator() {
           }}
         />
 
-        {/*<Tab.Screen
+        <Tab.Screen
           name="DemoMap"
           component={MapScreen}
           options={{
@@ -138,7 +136,8 @@ export function DemoNavigator() {
               <Icon icon="view" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
-        />*/}
+        />
+
         <Tab.Screen
           name="TelaTeste"
           component={TelaTeste}
