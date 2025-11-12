@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "react"
+import { FC, useState, useEffect, useRef } from "react"
 import {
   Modal,
   Pressable,
@@ -8,9 +8,9 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native"
-import { Audio } from "expo-av"
 import * as Location from "expo-location"
 import Ionicons from "@expo/vector-icons/Ionicons"
+import RNSoundLevel from "react-native-sound-level"
 
 import { Button } from "@/components/Button"
 import { Icon } from "@/components/Icon"
@@ -34,114 +34,118 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
 }) => {
   const { themed, theme } = useAppTheme()
   const [isRecording, setIsRecording] = useState(false)
-  const [recording, setRecording] = useState<Audio.Recording | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [audioUri, setAudioUri] = useState<string | null>(null)
-  const [decibel, setDecibel] = useState<number | null>(null)
+  const [currentDecibel, setCurrentDecibel] = useState<number | null>(null)
+  const [averageDecibel, setAverageDecibel] = useState<number | null>(null)
+  const [timeRemaining, setTimeRemaining] = useState<number>(10)
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const decibelReadingsRef = useRef<number[]>([])
 
   useEffect(() => {
-    // Request audio permissions when modal opens
-    if (visible) {
-      requestAudioPermission()
-    }
-
-    // Cleanup on unmount or when visible changes
+    // Cleanup on unmount or when modal closes
     return () => {
-      if (recording) {
-        recording.stopAndUnloadAsync().catch(console.error)
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current)
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current)
+      }
+      if (isRecording) {
+        RNSoundLevel.stop()
       }
     }
-  }, [visible, recording])
-
-  const requestAudioPermission = async (): Promise<void> => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync()
-      if (status !== "granted") {
-        Alert.alert("Permissão necessária", "Permita acesso ao microfone para gravar áudio.")
-      }
-    } catch (error) {
-      console.error("Error requesting audio permission:", error)
-    }
-  }
+  }, [isRecording])
 
   const startRecording = async (): Promise<void> => {
     try {
-      // Check permission
-      const { status } = await Audio.getPermissionsAsync()
-      if (status !== "granted") {
-        await requestAudioPermission()
-        return
-      }
-
-      // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      })
-
-      // Start recording
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      )
-
-      setRecording(newRecording)
+      // Reset states
+      setCurrentDecibel(null)
+      setAverageDecibel(null)
+      setTimeRemaining(10)
+      decibelReadingsRef.current = []
       setIsRecording(true)
 
+      // Start monitoring sound level
+      RNSoundLevel.start()
+
+      // Listen to sound level updates
+      RNSoundLevel.onNewFrame = (data: { value: number; rawValue: number }) => {
+        // value is in dB, typically ranges from -160 to 0
+        // Convert to a more meaningful scale (30-120 dB)
+        const decibelValue = Math.max(30, Math.min(120, data.value + 100))
+        setCurrentDecibel(Math.round(decibelValue))
+        decibelReadingsRef.current.push(decibelValue)
+      }
+
+      // Start countdown timer - update every second
+      let currentTime = 10
+      countdownTimerRef.current = setInterval(() => {
+        currentTime -= 1
+        setTimeRemaining(currentTime)
+
+        // Stop at 0
+        if (currentTime <= 0 && countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current)
+          countdownTimerRef.current = null
+        }
+      }, 1000)
+
       // Stop recording after 10 seconds
-      setTimeout(async () => {
-        await stopRecording(newRecording)
+      recordingTimerRef.current = setTimeout(async () => {
+        await stopRecording()
       }, RECORDING_DURATION_MS)
     } catch (error) {
       console.error("Failed to start recording:", error)
-      Alert.alert("Erro", "Não foi possível iniciar a gravação.")
+      setIsRecording(false)
+
+      // Check if it's a permission error
+      if (error instanceof Error && error.message.includes("permission")) {
+        Alert.alert(
+          "Permissão negada",
+          "O acesso ao microfone é necessário para gravar áudio. Por favor, habilite nas configurações do dispositivo.",
+        )
+      } else {
+        Alert.alert("Erro", "Não foi possível iniciar a gravação.")
+      }
     }
   }
 
-  const stopRecording = async (recordingInstance?: Audio.Recording): Promise<void> => {
+  const stopRecording = async (): Promise<void> => {
     try {
-      const recordingToStop = recordingInstance || recording
-      if (!recordingToStop) return
-
-      setIsRecording(false)
-      await recordingToStop.stopAndUnloadAsync()
-
-      const uri = recordingToStop.getURI()
-      if (uri) {
-        setAudioUri(uri)
-        // Calculate decibel from audio
-        await calculateDecibel(uri)
+      // Clear timers
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current)
+        countdownTimerRef.current = null
       }
 
-      setRecording(null)
+      // Stop monitoring
+      RNSoundLevel.stop()
+      setIsRecording(false)
+
+      // Calculate average decibel from all readings
+      if (decibelReadingsRef.current.length > 0) {
+        const sum = decibelReadingsRef.current.reduce((acc, val) => acc + val, 0)
+        const average = sum / decibelReadingsRef.current.length
+        setAverageDecibel(Math.round(average))
+        setCurrentDecibel(null)
+      } else {
+        // Fallback if no readings were captured
+        setAverageDecibel(70)
+      }
     } catch (error) {
       console.error("Failed to stop recording:", error)
+      setIsRecording(false)
       Alert.alert("Erro", "Não foi possível parar a gravação.")
     }
   }
 
-  const calculateDecibel = async (uri: string): Promise<void> => {
-    try {
-      // Load the audio file to get status
-      const { sound, status } = await Audio.Sound.createAsync({ uri })
-
-      if (status.isLoaded) {
-        // This is a simplified calculation - in production, you would need
-        // a more sophisticated audio analysis library to calculate actual decibels
-        // For now, we'll use a placeholder based on duration
-        const estimatedDecibel = Math.random() * 40 + 50 // Random value between 50-90 dB
-        setDecibel(Math.round(estimatedDecibel))
-      }
-
-      await sound.unloadAsync()
-    } catch (error) {
-      console.error("Failed to calculate decibel:", error)
-      // Set a default value if calculation fails
-      setDecibel(70)
-    }
-  }
-
   const handleSubmit = async (): Promise<void> => {
-    if (!audioUri || decibel === null) {
+    if (averageDecibel === null) {
       Alert.alert("Aviso", "Grave um áudio antes de enviar.")
       return
     }
@@ -164,20 +168,20 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
       const response = await api.submitAudioData({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        decibel,
-        audioUri,
+        decibel: averageDecibel,
+        audioUri: "", // Not needed with sound level monitoring
       })
 
       if (response.kind === "ok") {
-        Alert.alert("Sucesso", "Áudio enviado com sucesso!")
+        Alert.alert("Sucesso", "Dados enviados com sucesso!")
         onSuccess?.()
         handleClose()
       } else {
-        Alert.alert("Erro", "Não foi possível enviar o áudio. Tente novamente.")
+        Alert.alert("Erro", "Não foi possível enviar os dados. Tente novamente.")
       }
     } catch (error) {
       console.error("Failed to submit audio:", error)
-      Alert.alert("Erro", "Ocorreu um erro ao enviar o áudio.")
+      Alert.alert("Erro", "Ocorreu um erro ao enviar os dados.")
     } finally {
       setIsSubmitting(false)
     }
@@ -185,14 +189,25 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
 
   const handleClose = (): void => {
     // Reset state
-    setIsRecording(false)
-    setAudioUri(null)
-    setDecibel(null)
+    setAverageDecibel(null)
+    setCurrentDecibel(null)
+    setTimeRemaining(10)
+    decibelReadingsRef.current = []
 
     // Stop recording if active
-    if (recording) {
-      recording.stopAndUnloadAsync().catch(console.error)
-      setRecording(null)
+    if (isRecording) {
+      RNSoundLevel.stop()
+      setIsRecording(false)
+    }
+
+    // Clear timers
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current)
+      recordingTimerRef.current = null
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+      countdownTimerRef.current = null
     }
 
     onClose()
@@ -231,18 +246,26 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
               O áudio será vinculado à localização atual e agregado ao mapa de poluição sonora.
             </Text>
 
-            {/* Recording Status */}
+            {/* Recording Status with Live Decibel */}
             {isRecording && (
-              <View style={themed($recordingIndicator)}>
-                <View style={themed($recordingDot)} />
-                <Text style={themed($recordingText)}>Gravando...</Text>
+              <View style={themed($recordingContainer)}>
+                <View style={themed($recordingIndicator)}>
+                  <View style={themed($recordingDot)} />
+                  <Text style={themed($recordingText)}>Gravando... {timeRemaining}s</Text>
+                </View>
+                {currentDecibel !== null && (
+                  <View style={themed($liveDecibelContainer)}>
+                    <Text style={themed($liveDecibelText)}>{currentDecibel} dB</Text>
+                    <Text style={themed($liveDecibelLabel)}>Nível atual</Text>
+                  </View>
+                )}
               </View>
             )}
 
-            {/* Decibel Display */}
-            {decibel !== null && !isRecording && (
+            {/* Average Decibel Display */}
+            {averageDecibel !== null && !isRecording && (
               <View style={themed($decibelContainer)}>
-                <Text style={themed($decibelText)}>Nível estimado: {decibel} dB</Text>
+                <Text style={themed($decibelText)}>Nível médio: {averageDecibel} dB</Text>
               </View>
             )}
 
@@ -264,8 +287,8 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
 
               <Text style={themed($micButtonLabel)}>
                 {isRecording
-                  ? "Gravando..."
-                  : audioUri
+                  ? `Gravando... ${timeRemaining}s restantes`
+                  : averageDecibel !== null
                     ? "Gravar novamente"
                     : "Pressione para iniciar a gravação"}
               </Text>
@@ -276,7 +299,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
               style={themed($submitButton)}
               textStyle={themed($submitButtonText)}
               onPress={handleSubmit}
-              disabled={!audioUri || isRecording || isSubmitting}
+              disabled={averageDecibel === null || isRecording || isSubmitting}
               accessibilityLabel="Enviar áudio"
             >
               {isSubmitting ? (
@@ -351,10 +374,16 @@ const $instructionSubtext: ThemedStyle<TextStyle> = ({ colors, spacing, typograp
   marginBottom: spacing.xl,
 })
 
+const $recordingContainer: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  width: "100%",
+  alignItems: "center",
+  marginBottom: spacing.lg,
+})
+
 const $recordingIndicator: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   flexDirection: "row",
   alignItems: "center",
-  marginBottom: spacing.lg,
+  marginBottom: spacing.md,
 })
 
 const $recordingDot: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
@@ -369,6 +398,28 @@ const $recordingText: ThemedStyle<TextStyle> = ({ colors, typography }) => ({
   fontSize: 16,
   fontFamily: typography.primary.medium,
   color: colors.error,
+})
+
+const $liveDecibelContainer: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
+  paddingVertical: spacing.md,
+  paddingHorizontal: spacing.lg,
+  backgroundColor: colors.palette.accent100,
+  borderRadius: 16,
+  alignItems: "center",
+  minWidth: 120,
+})
+
+const $liveDecibelText: ThemedStyle<TextStyle> = ({ colors, typography, spacing }) => ({
+  fontSize: 32,
+  fontFamily: typography.primary.bold,
+  color: colors.palette.accent500,
+  marginBottom: spacing.xxs,
+})
+
+const $liveDecibelLabel: ThemedStyle<TextStyle> = ({ colors, typography }) => ({
+  fontSize: 12,
+  fontFamily: typography.primary.normal,
+  color: colors.textDim,
 })
 
 const $decibelContainer: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
