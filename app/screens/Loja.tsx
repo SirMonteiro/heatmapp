@@ -8,6 +8,7 @@ import { BannerLoja } from "@/components/BannerLoja"
 import { ItemLoja } from "@/components/ItemLoja"
 import { api } from "@/services/api"
 import { Icone } from "@/services/api/types"
+import { IMAGENS_ICONES, fallbackImage } from "@/utils/IconesImagens"
 
  type Produto =  {
     id: number
@@ -25,19 +26,6 @@ export function Loja() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
 
-  // TRABALHO DE CORNO AAAAAAAAAAAAAAAAAA
-  const ICON_IMAGES: Record<number, any> = {
-    1: require("../../assets/images/icones/icone1.jpeg"),
-    2: require("../../assets/images/icones/icone2.jpeg"),
-    3: require("../../assets/images/icones/icone3.jpeg"),
-    4: require("../../assets/images/icones/icone4.jpeg"),
-    5: require("../../assets/images/icones/icone5.jpeg"),
-    6: require("../../assets/images/icones/icone6.jpeg"),
-    7: require("../../assets/images/icones/icone7.jpeg"),
-    8: require("../../assets/images/icones/icone8.jpeg"),
-  }
-
-  const fallbackImage = ICON_IMAGES[1] // fazer um fallback real depois...
 
   useEffect(() => {
     let mounted = true
@@ -51,7 +39,7 @@ export function Loja() {
         //console.log("Fetch de icones realizado com sucesso!");
         const items: Produto[] = res.data.map((i: Icone) => ({
           id: i.id,
-          imagem: ICON_IMAGES[i.id - 1] ?? fallbackImage,
+          imagem: IMAGENS_ICONES[i.id] ?? fallbackImage,
           titulo: i.titulo,
           descricao: i.descricao,
           preco: i.preco,
