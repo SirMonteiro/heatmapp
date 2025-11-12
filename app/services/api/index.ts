@@ -14,7 +14,10 @@ import type {
   LoginResponse,
   RegisterRequest,
   UserData,
-  Icone
+  Icone,
+  AudioSubmissionRequest,
+  AudioSubmissionResponse,
+  HeatmapDataResponse,
 } from "@/services/api/types"
 
 import { GeneralApiProblem, getGeneralApiProblem } from "./apiProblem"
@@ -148,12 +151,36 @@ export class Api {
   }
 
   async getIcones(): Promise<ApiResult<Icone[]>> {
-    return this.request<Icone[]> ({
+    return this.request<Icone[]>({
       method: "get",
       url: "icones/",
     })
   }
 
+  async submitAudioData(
+    payload: AudioSubmissionRequest,
+  ): Promise<ApiResult<AudioSubmissionResponse>> {
+    // In a real implementation, you would upload the audio file
+    // For now, we'll just send the decibel and location data
+    return this.request<AudioSubmissionResponse>({
+      method: "post",
+      url: "poluicao-sonora/",
+      data: {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        decibel: payload.decibel,
+        // In production, you'd handle the audio file upload here
+        // audio: payload.audioUri
+      },
+    })
+  }
+
+  async getHeatmapData(): Promise<ApiResult<HeatmapDataResponse>> {
+    return this.request<HeatmapDataResponse>({
+      method: "get",
+      url: "poluicao-sonora/heatmap/",
+    })
+  }
 }
 
 // Singleton instance of the API for convenience

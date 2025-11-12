@@ -1,17 +1,19 @@
 import { FC, useState, useEffect, useRef, useMemo } from "react"
-import { Modal, Pressable, TextStyle, View, ViewStyle, Alert, TouchableOpacity } from "react-native"
+import { Pressable, TextStyle, View, ViewStyle, Alert, TouchableOpacity } from "react-native"
 import * as Location from "expo-location"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MapView, { PROVIDER_GOOGLE, Heatmap } from "react-native-maps"
 import type { Region } from "react-native-maps"
 
-import { ActionPlaceholder } from "@/components/ActionPlaceholder"
+import { AreasVerdesModal } from "@/components/AreasVerdesModal"
 import { Button } from "@/components/Button"
 import { Icon } from "@/components/Icon"
+import { PoluicaoSonoraModal } from "@/components/PoluicaoSonoraModal"
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
 import { TextField } from "@/components/TextField"
 import type { DemoTabScreenProps } from "@/navigators/DemoNavigator"
+import { api } from "@/services/api"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
@@ -152,9 +154,13 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
     requestLocationPermission()
   }, [])
 
-  // Update heatmap data when filter changes
+  // Fetch heatmap data when filter changes
   useEffect(() => {
-    updateHeatmapForFilter(activeFilter)
+    if (activeFilter === "poluicao") {
+      fetchHeatmapData()
+    } else {
+      updateHeatmapForFilter(activeFilter)
+    }
   }, [activeFilter])
 
   /**
@@ -184,6 +190,27 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         break
       default:
         setHeatmapData(SAMPLE_HEATMAP_DATA)
+    }
+  }
+
+  /**
+   * Fetch heatmap data from API for poluição sonora
+   */
+  const fetchHeatmapData = async (): Promise<void> => {
+    try {
+      const response = await api.getHeatmapData()
+
+      if (response.kind === "ok") {
+        setHeatmapData(response.data.points)
+      } else {
+        console.error("Failed to fetch heatmap data:", response.kind)
+        // Fallback to sample data if API fails
+        setHeatmapData(SAMPLE_HEATMAP_DATA)
+      }
+    } catch (error) {
+      console.error("Error fetching heatmap data:", error)
+      // Fallback to sample data on error
+      setHeatmapData(SAMPLE_HEATMAP_DATA)
     }
   }
 
@@ -308,6 +335,16 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
    */
   const handleFilterPress = (filter: FilterType): void => {
     setActiveFilter(filter)
+  }
+
+  /**
+   * Handle successful audio submission
+   */
+  const handleAudioSubmitSuccess = (): void => {
+    // Refresh heatmap data after successful submission
+    if (activeFilter === "poluicao") {
+      fetchHeatmapData()
+    }
   }
 
   /**
@@ -453,28 +490,17 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         </Button>
       </View>
 
-      {/* Action Modal */}
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeModal}
-        accessibilityViewIsModal
-      >
-        <View style={themed($modalContainer)}>
-          <View style={themed($modalHeader)}>
-            <Pressable
-              style={themed($closeButton)}
-              onPress={closeModal}
-              accessibilityRole="button"
-              accessibilityLabel="Fechar modal"
-            >
-              <Icon icon="x" size={24} />
-            </Pressable>
-          </View>
-          <ActionPlaceholder actionType={currentAction} />
-        </View>
-      </Modal>
+      {/* Modals */}
+      <PoluicaoSonoraModal
+        visible={isModalVisible && currentAction === "audio"}
+        onClose={closeModal}
+        onSuccess={handleAudioSubmitSuccess}
+      />
+
+      <AreasVerdesModal
+        visible={isModalVisible && currentAction === "area-verde"}
+        onClose={closeModal}
+      />
     </Screen>
   )
 }
@@ -628,23 +654,4 @@ const $bottomButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
 const $bottomButtonText: ThemedStyle<TextStyle> = ({ typography }) => ({
   fontSize: 16,
   fontFamily: typography.primary.medium,
-})
-
-// Modal Styles
-const $modalContainer: ThemedStyle<ViewStyle> = ({ colors }) => ({
-  flex: 1,
-  backgroundColor: colors.background,
-})
-
-const $modalHeader: ThemedStyle<ViewStyle> = ({ spacing }) => ({
-  flexDirection: "row",
-  justifyContent: "flex-end",
-  paddingHorizontal: spacing.md,
-  paddingTop: spacing.md,
-})
-
-const $closeButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
-  padding: spacing.xs,
-  borderRadius: 20,
-  backgroundColor: colors.palette.neutral200,
 })

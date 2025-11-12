@@ -84,3 +84,28 @@ export interface Icone {
   descricao: string
   preco: number
 }
+
+export interface AudioSubmissionRequest {
+  latitude: number
+  longitude: number
+  decibel: number
+  audioUri: string
+}
+
+export interface AudioSubmissionResponse {
+  id: number
+  latitude: number
+  longitude: number
+  decibel: number
+  created_at: string
+}
+
+export interface HeatmapPoint {
+  latitude: number
+  longitude: number
+  weight: number
+}
+
+export interface HeatmapDataResponse {
+  points: HeatmapPoint[]
+}
