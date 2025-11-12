@@ -34,6 +34,15 @@ module.exports = ({ config }: ConfigContext): Partial<ExpoConfig> => {
         ],
       },
     },
-    plugins: [...existingPlugins, require("./plugins/withSplashScreen").withSplashScreen],
+    plugins: [
+      ...existingPlugins,
+      require("./plugins/withSplashScreen").withSplashScreen,
+      [
+        "react-native-maps",
+        {
+          androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_APIKEY,
+        },
+      ],
+    ],
   }
 }
