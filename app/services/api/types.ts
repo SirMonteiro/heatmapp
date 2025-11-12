@@ -77,3 +77,10 @@ export interface RegisterRequest {
   email: string
   password: string
 }
+
+export interface Icone {
+  id: number
+  titulo: string
+  descricao: string
+  preco: number
+}

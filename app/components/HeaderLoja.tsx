@@ -1,12 +1,42 @@
-import React from "react"
-import { View, Text, StyleSheet, Image } from "react-native"
+import React, { useEffect, useState } from "react"
+import { View, Text, StyleSheet, Image, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
+import { api } from "@/services/api"
+import { UserData } from "@/services/api/types"
 import { useAppTheme } from "@/theme/context"
 
 export function HeaderLoja() {
   const { theme } = useAppTheme()
   const { colors } = theme
+
+  const [moedas, setMoedas] = useState<number | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadCurrentUser() {
+      setLoading(true)
+      const res = await api.getCurrentUser()
+      if (!mounted) return
+
+      if (res.kind === "ok") {
+        console.log("fetch de current user realizado com sucesso!");
+        setMoedas(typeof res.data.moedas === "number" ? res.data.moedas : 0)
+      } else {
+        // se não autorizado ou erro, mostra 0 
+        console.warn("Não foi possível obter o usuário atual:", res)
+        setMoedas(0)
+      }
+      setLoading(false)
+    }
+
+    loadCurrentUser()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   return (
       <View style={styles.headerContainer}>
@@ -19,7 +49,13 @@ export function HeaderLoja() {
             resizeMode="contain"
           />
 
-          <Text style={styles.balanceText}>25</Text>
+          
+        {loading ? (
+          <ActivityIndicator size="small" color="#FFB37C" />
+        ) : (
+          <Text style={styles.balanceText}>{moedas ?? 0}</Text>
+        )}
+
         </View>
       </View>
   )

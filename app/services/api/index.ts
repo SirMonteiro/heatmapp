@@ -14,6 +14,7 @@ import type {
   LoginResponse,
   RegisterRequest,
   UserData,
+  Icone
 } from "@/services/api/types"
 
 import { GeneralApiProblem, getGeneralApiProblem } from "./apiProblem"
@@ -145,6 +146,14 @@ export class Api {
       data: payload,
     })
   }
+
+  async getIcones(): Promise<ApiResult<Icone[]>> {
+    return this.request<Icone[]> ({
+      method: "get",
+      url: "icones/",
+    })
+  }
+
 }
 
 // Singleton instance of the API for convenience
