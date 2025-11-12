@@ -32,7 +32,7 @@ export function Loja() {
 
     async function loadIcones() {
       setLoading(true)
-      const res = await api.getIcones()
+      const res = await api.getIconesDisponiveis()
       if (!mounted) return
 
       if (res.kind === "ok") {

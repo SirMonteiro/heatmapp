@@ -154,6 +154,13 @@ export class Api {
     })
   }
 
+  async getIconesDisponiveis(): Promise<ApiResult<Icone[]>> {
+    return this.request<Icone[]> ({
+      method: "get",
+      url: "icones/disponiveis",
+    })
+  }
+
 }
 
 // Singleton instance of the API for convenience
