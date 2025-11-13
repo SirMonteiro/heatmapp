@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { View, Text, StyleSheet, Image, ScrollView } from "react-native"
+import { View, Text, StyleSheet, Image, ScrollView, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { useAppTheme } from "@/theme/context"
@@ -25,7 +25,7 @@ export function Loja() {
 
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
-
+  const [moedas, setMoedas] = useState<number | null>(null) // pra atualizar a header
 
   useEffect(() => {
     let mounted = true
@@ -51,6 +51,10 @@ export function Loja() {
         setProdutos([])
       }
 
+      const userRes = await api.getCurrentUser()
+      if (userRes.kind === "ok") setMoedas(userRes.data.moedas ?? 0)
+      else setMoedas(null)
+      
       setLoading(false)
     }
 
@@ -60,6 +64,33 @@ export function Loja() {
     }
   }, [])
 
+  async function handleBuy(iconeId: number) {
+    try {
+      const res = await api.comprarIcone(iconeId)
+      if (res.kind === "ok") {
+        // compra bem-sucedida
+        Alert.alert("Compra realizada", res.data.detail ?? "Compra efetuada com sucesso.")
+        // remove o ícone comprado da lista
+        setProdutos((prev) => prev.filter((p) => p.id !== iconeId))
+        // atualiza saldo no header se backend retornou moedas
+        if (typeof res.data.moedas === "number") {
+          setMoedas(res.data.moedas)
+        } else {
+          // ou busca o usuário atual novamente
+          const userRes = await api.getCurrentUser()
+          if (userRes.kind === "ok") setMoedas(userRes.data.moedas ?? 0)
+        }
+      } else {
+        // lidar com erros: saldo insuficiente, já comprado, 401, etc.
+        const msg = (res as any).data?.detail ?? (res as any).message ?? "Erro ao comprar."
+        Alert.alert("Não foi possível comprar", msg)
+      }
+    } catch (e) {
+      console.warn(e)
+      Alert.alert("Erro", "Erro ao processar a compra. Tente novamente.")
+    }
+  }
+
 //console.log("VOU ME MATAR")
   return (
 
@@ -67,7 +98,7 @@ export function Loja() {
     
     <SafeAreaView style={{ flex: 1 }}> 
     {/* flex 1 é pra ocupar a tela toda*/}
-    <HeaderLoja />
+    <HeaderLoja moedas={moedas}/>
     <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
       {/*  paddinBottom é pra que a navbar não fique em cima*/}
       <Text>{"\n\n"}</Text>
@@ -79,6 +110,8 @@ export function Loja() {
           titulo={produto.titulo}
           descricao={produto.descricao}
           preco={produto.preco}
+          onBuy={() => handleBuy(produto.id)}
+          disabled={moedas !== null && moedas < produto.preco}
         />
       ))}
     </ScrollView>

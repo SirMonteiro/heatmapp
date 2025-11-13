@@ -6,7 +6,11 @@ import { api } from "@/services/api"
 import { UserData } from "@/services/api/types"
 import { useAppTheme } from "@/theme/context"
 
-export function HeaderLoja() {
+type HeaderLojaProps = {
+  moedas?: number | null
+}
+
+export function HeaderLoja({moedas: moedasProp}: HeaderLojaProps) {
   const { theme } = useAppTheme()
   const { colors } = theme
 
@@ -15,20 +19,18 @@ export function HeaderLoja() {
 
   useEffect(() => {
     let mounted = true
+    if (moedasProp != null) {
+      setMoedas(moedasProp)
+      setLoading(false)
+      return
+    }
 
     async function loadCurrentUser() {
       setLoading(true)
       const res = await api.getCurrentUser()
       if (!mounted) return
-
-      if (res.kind === "ok") {
-        console.log("fetch de current user realizado com sucesso!");
-        setMoedas(typeof res.data.moedas === "number" ? res.data.moedas : 0)
-      } else {
-        // se não autorizado ou erro, mostra 0 
-        console.warn("Não foi possível obter o usuário atual:", res)
-        setMoedas(0)
-      }
+      if (res.kind === "ok") setMoedas(res.data.moedas ?? 0)
+      else setMoedas(0)
       setLoading(false)
     }
 
@@ -36,7 +38,7 @@ export function HeaderLoja() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [moedasProp])
 
   return (
       <View style={styles.headerContainer}>

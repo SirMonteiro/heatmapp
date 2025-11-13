@@ -6,9 +6,11 @@ type ItemLojaProps = {
   titulo: string;
   descricao: string;
   preco: number;
+  onBuy?: () => void
+  disabled: boolean
 };
 
-export function ItemLoja({ imagem, titulo, descricao, preco }: ItemLojaProps) {
+export function ItemLoja({ imagem, titulo, descricao, preco, onBuy, disabled}: ItemLojaProps) {
   return (
     <View style={styles.container}>
       <Image source={imagem} style={styles.imagem} resizeMode="cover" />
@@ -32,9 +34,10 @@ export function ItemLoja({ imagem, titulo, descricao, preco }: ItemLojaProps) {
           <Button
             text="Comprar"
             preset="filled"
-            onPress={() => Alert.alert("Item comprado com sucesso!")}
-            style={styles.botao}
+            onPress={onBuy}
+            style={[styles.botao, disabled && styles.botaoDesabilitado]} // wooow
             textStyle={{ color: "#FFF", fontWeight: "700" }}
+            disabled={disabled}
           />
         </View>
       </View>
@@ -110,4 +113,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  botaoDesabilitado: {
+    backgroundColor: "#999",
+
+  }
 });

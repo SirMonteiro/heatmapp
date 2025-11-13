@@ -161,6 +161,13 @@ export class Api {
     })
   }
 
+  async comprarIcone(iconeId: number): Promise<ApiResult<{ moedas?: number; detail?: string }>> {
+    return this.request<{ moedas?: number; detail?: string }>({
+      method: "post",
+      url: `icones/${iconeId}/comprar/`,
+    })
+  }
+
 }
 
 // Singleton instance of the API for convenience
