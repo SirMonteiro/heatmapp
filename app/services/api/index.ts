@@ -15,15 +15,10 @@ import type {
   RegisterRequest,
   UserData,
   Icone,
-<<<<<<< HEAD
   IconeComprado,
-||||||| 17f4683
-  Icone
-=======
   AudioSubmissionRequest,
   AudioSubmissionResponse,
   HeatmapDataResponse,
->>>>>>> mapa
 } from "@/services/api/types"
 
 import { GeneralApiProblem, getGeneralApiProblem } from "./apiProblem"
@@ -187,17 +182,13 @@ export class Api {
   async submitAudioData(
     payload: AudioSubmissionRequest,
   ): Promise<ApiResult<AudioSubmissionResponse>> {
-    // In a real implementation, you would upload the audio file
-    // For now, we'll just send the decibel and location data
     return this.request<AudioSubmissionResponse>({
       method: "post",
-      url: "poluicao-sonora/",
+      url: "posts_ruido/",
       data: {
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        decibel: payload.decibel,
-        // In production, you'd handle the audio file upload here
-        // audio: payload.audioUri
+        local_latitude: payload.latitude,
+        local_longitude: payload.longitude,
+        decibeis: payload.decibel,
       },
     })
   }
@@ -205,7 +196,14 @@ export class Api {
   async getHeatmapData(): Promise<ApiResult<HeatmapDataResponse>> {
     return this.request<HeatmapDataResponse>({
       method: "get",
-      url: "poluicao-sonora/heatmap/",
+      url: "posts_ruido/",
+    })
+  }
+
+  async getRanking(): Promise<ApiResult<UserData[]>> {
+    return this.request<UserData[]>({
+      method: "get",
+      url: "usuarios/ranking",
     })
   }
 }

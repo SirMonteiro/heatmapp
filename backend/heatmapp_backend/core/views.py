@@ -13,6 +13,12 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
+    # User ordenado pro ranking lmao
+    @action (detail=False, methods=["get"])
+    def ranking(self, request):
+        ranking = User.objects.all().order_by('-streak')
+        serializer = self.get_serializer(ranking, many=True)
+        return Response(serializer.data)
 
 class IconeViewSet(viewsets.ModelViewSet):
     queryset = Icone.objects.all()
@@ -60,7 +66,7 @@ class IconeCompradoViewSet(viewsets.ModelViewSet):
     @action (detail=False, methods=["get"], permission_classes=[IsAuthenticated])
     def meus_icones(self, request):
         icones = IconeComprado.objects.filter(user=request.user)
-        serializer = serializer = self.get_serializer(icones, many=True)
+        serializer = self.get_serializer(icones, many=True)
         return Response(serializer.data)
 
     

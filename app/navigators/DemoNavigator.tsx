@@ -8,13 +8,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Icon } from "@/components/Icon"
 import { EpisodeProvider } from "@/context/EpisodeContext"
 import { translate } from "@/i18n/translate"
+import { PerfilStack } from "@/navigators/PerfilStack"
 import { DemoCommunityScreen } from "@/screens/DemoCommunityScreen"
 import { DemoDebugScreen } from "@/screens/DemoDebugScreen"
 import { DemoPodcastListScreen } from "@/screens/DemoPodcastListScreen"
 import { DemoShowroomScreen } from "@/screens/DemoShowroomScreen/DemoShowroomScreen"
 import { Loja } from "@/screens/Loja"
 import { MapScreen } from "@/screens/MapScreen"
-import { Perfil } from "@/screens/Perfil"
+// import { Perfil } from "@/screens/Perfil"
 import { Sobre } from "@/screens/Sobre"
 import { TelaTeste } from "@/screens/TelaTeste"
 import { useAppTheme } from "@/theme/context"
@@ -75,7 +76,7 @@ export function DemoNavigator() {
           tabBarItemStyle: themed($tabBarItem),
         }}
       >
-        <Tab.Screen
+        {/* <Tab.Screen
           name="DemoShowroom"
           component={DemoShowroomScreen}
           options={{
@@ -88,9 +89,9 @@ export function DemoNavigator() {
               />
             ),
           }}
-        />
+        /> */}
 
-        <Tab.Screen
+        {/* <Tab.Screen
           name="DemoCommunity"
           component={DemoCommunityScreen}
           options={{
@@ -103,9 +104,9 @@ export function DemoNavigator() {
               />
             ),
           }}
-        />
+        /> */}
 
-        <Tab.Screen
+        {/* <Tab.Screen
           name="DemoPodcastList"
           component={DemoPodcastListScreen}
           options={{
@@ -115,9 +116,9 @@ export function DemoNavigator() {
               <Icon icon="podcast" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
-        />
+        /> */}
 
-        <Tab.Screen
+        {/* <Tab.Screen
           name="DemoDebug"
           component={DemoDebugScreen}
           options={{
@@ -126,7 +127,7 @@ export function DemoNavigator() {
               <Icon icon="debug" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
-        />
+        /> */}
 
         <Tab.Screen
           name="DemoMap"
@@ -134,12 +135,16 @@ export function DemoNavigator() {
           options={{
             tabBarLabel: "Mapa",
             tabBarIcon: ({ focused }) => (
-              <Icon icon="view" color={focused ? colors.tint : colors.tintInactive} size={30} />
+              <MaterialCommunityIcons
+                name="map"
+                color={focused ? colors.tint : colors.tintInactive}
+                size={30}
+              />
             ),
           }}
         />
 
-        <Tab.Screen
+        {/* <Tab.Screen
           name="TelaTeste"
           component={TelaTeste}
           options={{
@@ -148,18 +153,7 @@ export function DemoNavigator() {
               <Icon icon="debug" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
-        />
-
-        <Tab.Screen
-          name="Configuracoes"
-          component={ConfiguracoesNavigator}
-          options={{
-            tabBarLabel: "Configurações",
-            tabBarIcon: ({ focused }) => (
-              <Icon icon="settings" color={focused ? colors.tint : colors.tintInactive} size={30} />
-            ),
-          }}
-        />
+        /> */}
 
         <Tab.Screen
           name="Loja"
@@ -183,6 +177,17 @@ export function DemoNavigator() {
             tabBarLabel: "Perfil",
             tabBarIcon: ({ focused }) => (
               <Feather name="user" size={24} color={focused ? colors.tint : colors.tintInactive} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Configuracoes"
+          component={ConfiguracoesNavigator}
+          options={{
+            tabBarLabel: "Configurações",
+            tabBarIcon: ({ focused }) => (
+              <Icon icon="settings" color={focused ? colors.tint : colors.tintInactive} size={30} />
             ),
           }}
         />

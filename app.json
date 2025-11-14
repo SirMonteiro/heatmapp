@@ -20,7 +20,8 @@
       "backgroundImage": "./assets/images/app-icon-android-adaptive-background.png"
     },
     "allowBackup": false,
-    "edgeToEdgeEnabled": true
+    "edgeToEdgeEnabled": true,
+    "permissions": ["android.permission.RECORD_AUDIO"]
   },
   "ios": {
     "icon": "./assets/images/app-icon-ios.png",

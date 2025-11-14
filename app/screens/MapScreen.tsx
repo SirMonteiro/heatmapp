@@ -482,11 +482,11 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
           textStyle={themed($bottomButtonText)}
           onPress={() => handleActionPress(buttonConfig.action)}
           LeftAccessory={(props) => (
-            <Icon icon={buttonConfig.icon} size={20} containerStyle={props.style} />
+            <Icon icon={buttonConfig.icon} size={20} color="#FFFFFF" containerStyle={props.style} />
           )}
           accessibilityLabel={buttonConfig.label}
         >
-          {buttonConfig.label}
+          {" " + buttonConfig.label}
         </Button>
       </View>
 
@@ -651,7 +651,8 @@ const $bottomButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
   maxWidth: 350,
 })
 
-const $bottomButtonText: ThemedStyle<TextStyle> = ({ typography }) => ({
+const $bottomButtonText: ThemedStyle<TextStyle> = ({ typography, colors }) => ({
   fontSize: 16,
   fontFamily: typography.primary.medium,
+  color: colors.palette.neutral100,
 })

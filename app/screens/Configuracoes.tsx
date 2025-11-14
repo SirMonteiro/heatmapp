@@ -31,10 +31,10 @@ export function Configuracoes() {
           <MaterialIcons name="arrow-forward-ios" size={24} color="black" />
         </Pressable>
 
-        <Pressable style={styles.item} onPress={() => console.log("Crueldade")}>
+        {/* <Pressable style={styles.item} onPress={() => console.log("Crueldade")}>
           <Text style={styles.itemText}>Escolher qual letalidade inflingir em OgawaSama</Text>
           <MaterialIcons name="arrow-forward-ios" size={24} color="black" />
-        </Pressable>
+        </Pressable> */}
 
       </View>
     </Screen>

@@ -18,45 +18,52 @@ export function Perfil() {
   const isFocused = useIsFocused()
 
   const [user, setUser] = useState<UserData | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loadingUser, setLoadingUser] = useState<boolean>(true)
+
+  const [ranking, setRanking] = useState<UserData[]>([])
+  const [loadingRanking, setLoadingRanking] = useState<boolean>(true)
 
   const loadUser = useCallback(async () => {
-    setLoading(true)
+    setLoadingUser(true)
     const res = await api.getCurrentUser()
     if (res.kind === "ok") setUser(res.data)
     else {
       console.warn("Perfil: não foi possível carregar current_user", res)
       setUser(null)
     }
-    setLoading(false)
+    setLoadingUser(false)
+  }, [])
+
+  const loadRanking = useCallback(async () => {
+    setLoadingRanking(true)
+    const res = await api.getRanking()
+    if (res.kind === "ok") {
+      setRanking(res.data)
+    } else {
+      console.warn("Perfil: não foi possível carregar ranking", res)
+      setRanking([])
+    }
+    setLoadingRanking(false)
   }, [])
 
   useEffect(() => {
-   
-    if (isFocused) loadUser()
-  }, [isFocused, loadUser])
+    if (isFocused) {
+      loadUser()
+      loadRanking()
+    }
+  }, [isFocused, loadUser, loadRanking])
 
   const avatarSource = (() => {
     const id = user?.id_icone
     if (typeof id === "number" && id > 0) {
-      return IMAGENS_ICONES[id - 1] ?? fallbackImage
+      return IMAGENS_ICONES[id] ?? fallbackImage
     }
     return fallbackImage
   })()
 
-  // desmockar depois...
-  const rankingData = [
-    { id: "1", username: "Desgraçadilson", icone: IMAGENS_ICONES[0] ?? fallbackImage, streak: 35 },
-    { id: "2", username: "faltalover", icone: IMAGENS_ICONES[3] ?? fallbackImage, streak: 32 },
-    { id: "3", username: "esfaqueador_do_parque", icone: IMAGENS_ICONES[2] ?? fallbackImage, streak: 30 },
-    { id: "4", username: "bergmanfan", icone: IMAGENS_ICONES[1] ?? fallbackImage, streak: 20 },
-    { id: "5", username: "ononokiposting", icone: IMAGENS_ICONES[3] ?? fallbackImage, streak: 15 },
-    { id: "6", username: "react-native-hater", icone: IMAGENS_ICONES[3] ?? fallbackImage, streak: 5 },
-  ]
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors?.background ?? "#fff" }}>
-      {loading ? (
+      {loadingUser ? (
         <View style={{ height: 120, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="small" color={"#006FFD"} />
         </View>
@@ -77,12 +84,35 @@ export function Perfil() {
 
       <Separator />
 
-      <ScrollView style={styles.rankingContainer}>
+      <ScrollView style={styles.rankingContainer} contentContainerStyle={{ paddingBottom: 24 }}>
         <Text style={styles.rankingText}>Ranking</Text>
 
-        {rankingData.map((item, index) => (
-          <ItemRanking key={item.id} posicao={index + 1} icone={item.icone} username={item.username} streak={item.streak} />
-        ))}
+        {loadingRanking ? (
+          <View style={{ paddingVertical: 24 }}>
+            <ActivityIndicator size="small" color={"#006FFD"} />
+          </View>
+        ) : ranking.length === 0 ? (
+          <View style={{ paddingVertical: 24, alignItems: "center" }}>
+            <Text style={{ color:"#666" }}>Nenhum usuário no ranking.</Text>
+          </View>
+        ) : (
+          ranking.map((rUser, index) => {
+            
+            const iconeSource = (typeof rUser.id_icone === "number" && rUser.id_icone >= 0)
+              ? IMAGENS_ICONES[rUser.id_icone] ?? fallbackImage
+              : fallbackImage
+
+            return (
+              <ItemRanking
+                key={String(rUser.id)}
+                posicao={index + 1}
+                icone={iconeSource}
+                username={rUser.username}
+                streak={rUser.streak ?? 0}
+              />
+            )
+          })
+        )}
       </ScrollView>
 
       <Separator />
@@ -100,5 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.2,
     fontSize: 24,
+    marginTop: 8,
+    marginBottom: 12,
   },
 })
