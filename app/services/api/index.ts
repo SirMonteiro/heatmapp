@@ -14,7 +14,8 @@ import type {
   LoginResponse,
   RegisterRequest,
   UserData,
-  Icone
+  Icone,
+  IconeComprado,
 } from "@/services/api/types"
 
 import { GeneralApiProblem, getGeneralApiProblem } from "./apiProblem"
@@ -165,6 +166,13 @@ export class Api {
     return this.request<{ moedas?: number; detail?: string }>({
       method: "post",
       url: `icones/${iconeId}/comprar/`,
+    })
+  }
+
+  async meusIcones(): Promise<ApiResult<IconeComprado[]>> {
+    return this.request<IconeComprado[]>({
+      method: "get",
+      url: `icones_comprados/meus_icones`,
     })
   }
 

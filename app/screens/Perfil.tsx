@@ -1,103 +1,104 @@
-import React from "react"
-import { View, Text, StyleSheet, Image, ScrollView } from "react-native"
+import React, { useEffect, useState, useCallback } from "react"
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native"
 import { useAppTheme } from "@/theme/context"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { HeaderLoja } from "@/components/HeaderLoja"
-import {HeaderUsuario} from "@/components/HeaderUsuario"
-import {StreakCoin} from "@/components/StreakCoin"
+import { HeaderUsuario } from "@/components/HeaderUsuario"
+import { StreakCoin } from "@/components/StreakCoin"
 import { Separator } from "@/components/Separator"
 import { ItemRanking } from "@/components/ItemRanking"
+import { api } from "@/services/api"
+import { IMAGENS_ICONES, fallbackImage } from "@/utils/IconesImagens"
+import type { UserData } from "@/services/api/types"
+import { useNavigation, useIsFocused } from "@react-navigation/native"
 
-export function Perfil () {
-    const { theme } = useAppTheme()
-    const { colors } = theme
+export function Perfil() {
+  const { theme } = useAppTheme()
+  const { colors } = theme
+  const navigation = useNavigation()
+  const isFocused = useIsFocused()
 
-    const usuario = {
-        icon: require("../../assets/images/gatoLingua.webp"),
-        username: "Usarilson",
-        nome_completo: "Usuarilson da Silva",
-        streak: 15,
-        moedas: 25
+  const [user, setUser] = useState<UserData | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+
+  const loadUser = useCallback(async () => {
+    setLoading(true)
+    const res = await api.getCurrentUser()
+    if (res.kind === "ok") setUser(res.data)
+    else {
+      console.warn("Perfil: não foi possível carregar current_user", res)
+      setUser(null)
     }
+    setLoading(false)
+  }, [])
 
-    const rankingData = [
-        {
-            id: "1",
-            username: "Desgraçadilson",
-            icone: require("../../assets/images/freaky_cat.jpeg"),
-            streak: 35
-        },
-        {
-            id: "2",
-            username: "faltalover",
-            icone: require("../../assets/images/bocchi-1.png"),
-            streak: 32
-        },
-        {
-            id: "3",
-            username: "esfaqueador_do_parque",
-            icone: require("../../assets/images/gatoSentido.webp"),
-            streak: 30
-        },
-        {
-            id: "4",
-            username: "bergmanfan",
-            icone: require("../../assets/images/osaka-1.png"),
-            streak: 20
-        },
-        {
-            id: "5",
-            username: "ononokiposting",
-            icone: require("../../assets/images/bocchi-1.png"),
-            streak: 15
-        },
-        {
-            id: "6",
-            username: "react-native-hater",
-            icone: require("../../assets/images/bocchi-1.png"),
-            streak: 5
-        },
+  useEffect(() => {
+   
+    if (isFocused) loadUser()
+  }, [isFocused, loadUser])
 
-    ]
+  const avatarSource = (() => {
+    const id = user?.id_icone
+    if (typeof id === "number" && id > 0) {
+      return IMAGENS_ICONES[id - 1] ?? fallbackImage
+    }
+    return fallbackImage
+  })()
 
-    return ( 
-        <SafeAreaView style={{flex: 1}}>
-            <HeaderUsuario 
-            icone={usuario.icon}
-            username= {usuario.username}
-            nome_completo={usuario.nome_completo}/>
-            <Separator/>
-            <StreakCoin
-            streak={usuario.streak}
-            moedas={usuario.moedas}/>
-            <Separator/>
-            <ScrollView style={styles.rankingContainer}>
-                <Text style={styles.rankingText}>Ranking</Text>
+  // desmockar depois...
+  const rankingData = [
+    { id: "1", username: "Desgraçadilson", icone: IMAGENS_ICONES[0] ?? fallbackImage, streak: 35 },
+    { id: "2", username: "faltalover", icone: IMAGENS_ICONES[3] ?? fallbackImage, streak: 32 },
+    { id: "3", username: "esfaqueador_do_parque", icone: IMAGENS_ICONES[2] ?? fallbackImage, streak: 30 },
+    { id: "4", username: "bergmanfan", icone: IMAGENS_ICONES[1] ?? fallbackImage, streak: 20 },
+    { id: "5", username: "ononokiposting", icone: IMAGENS_ICONES[3] ?? fallbackImage, streak: 15 },
+    { id: "6", username: "react-native-hater", icone: IMAGENS_ICONES[3] ?? fallbackImage, streak: 5 },
+  ]
 
-                {rankingData.map((item, index) => (
-                    <ItemRanking
-                    key={item.id}
-                    posicao={index + 1}
-                    icone={item.icone}
-                    username={item.username}
-                    streak={item.streak}/>
-                ))}
-            </ScrollView>
-            <Separator/>
-        </SafeAreaView>
-    )
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors?.background ?? "#fff" }}>
+      {loading ? (
+        <View style={{ height: 120, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="small" color={"#006FFD"} />
+        </View>
+      ) : (
+        <HeaderUsuario
+          icone={avatarSource}
+          username={user?.username}
+          nome_completo={
+            user ? `${user.first_name ?? ""}${user.last_name ? " " + user.last_name : ""}`.trim() : undefined
+          }
+          onPressRightIcon={() => navigation.navigate("IconChange" as never)}
+        />
+      )}
+
+      <Separator />
+
+      <StreakCoin streak={user?.streak ?? 0} moedas={user?.moedas ?? 0} />
+
+      <Separator />
+
+      <ScrollView style={styles.rankingContainer}>
+        <Text style={styles.rankingText}>Ranking</Text>
+
+        {rankingData.map((item, index) => (
+          <ItemRanking key={item.id} posicao={index + 1} icone={item.icone} username={item.username} streak={item.streak} />
+        ))}
+      </ScrollView>
+
+      <Separator />
+    </SafeAreaView>
+  )
 }
 
-
 const styles = StyleSheet.create({
-    rankingContainer: {
-        maxHeight: 600,
-    },
-    rankingText: {
-        textAlign: "center",
-        fontFamily: "Inter-ExtraBold",
-        fontWeight: 800,
-        letterSpacing: 0.2,
-        fontSize: 24,
-    }
+  rankingContainer: {
+    maxHeight: 600,
+  },
+  rankingText: {
+    textAlign: "center",
+    fontFamily: "Inter-ExtraBold",
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    fontSize: 24,
+  },
 })

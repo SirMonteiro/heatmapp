@@ -84,3 +84,8 @@ export interface Icone {
   descricao: string
   preco: number
 }
+
+export interface IconeComprado {
+  user: number
+  icone: number
+}

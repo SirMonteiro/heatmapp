@@ -57,6 +57,13 @@ class IconeCompradoViewSet(viewsets.ModelViewSet):
     queryset = IconeComprado.objects.all()
     serializer_class = IconeCompradoSerializer
 
+    @action (detail=False, methods=["get"], permission_classes=[IsAuthenticated])
+    def meus_icones(self, request):
+        icones = IconeComprado.objects.filter(user=request.user)
+        serializer = serializer = self.get_serializer(icones, many=True)
+        return Response(serializer.data)
+
+    
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()

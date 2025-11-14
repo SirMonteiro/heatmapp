@@ -21,7 +21,9 @@ import { TelaTeste } from "@/screens/TelaTeste"
 import { ConfiguracoesNavigator } from "./ConfiguracoesNavigator"
 import { Sobre } from "@/screens/Sobre"
 import { Loja } from "@/screens/Loja"
-import { Perfil } from "@/screens/Perfil"
+//import { Perfil } from "@/screens/Perfil"
+import { PerfilStack } from "@/navigators/PerfilStack"
+import { IconChangeScreen } from "@/screens/IconChangeScreen"
 
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
@@ -35,6 +37,7 @@ export type DemoTabParamList = {
   Configuracoes: undefined
   Loja: undefined
   Perfil: undefined
+  IconChangeScreen: undefined
 }
 
 /**
@@ -178,7 +181,7 @@ export function DemoNavigator() {
 
         <Tab.Screen
           name="Perfil"
-          component={Perfil}
+          component={PerfilStack}
           options={{
             tabBarLabel: "Perfil",
             tabBarIcon: ({ focused }) => (
