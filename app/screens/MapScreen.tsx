@@ -1,63 +1,172 @@
-import { FC, useState, useEffect } from "react"
-import {
-  Modal,
-  Pressable,
-  TextStyle,
-  View,
-  ViewStyle,
-  ActivityIndicator,
-  Alert,
-} from "react-native"
+import { FC, useState, useEffect, useRef, useMemo } from "react"
+import { Pressable, TextStyle, View, ViewStyle, Alert, TouchableOpacity } from "react-native"
 import * as Location from "expo-location"
-import LeafletView from "react-native-leaflet-map"
-import type {
-  LeafletWebViewEvent,
-  MapLayer,
-  MapMarker,
-  LatLngLiteral,
-} from "react-native-leaflet-map"
+import Ionicons from "@expo/vector-icons/Ionicons"
+import MapView, { PROVIDER_GOOGLE, Heatmap } from "react-native-maps"
+import type { Region } from "react-native-maps"
 
-import { ActionPlaceholder } from "@/components/ActionPlaceholder"
+import { AreasVerdesModal } from "@/components/AreasVerdesModal"
 import { Button } from "@/components/Button"
 import { Icon } from "@/components/Icon"
+import { PoluicaoSonoraModal } from "@/components/PoluicaoSonoraModal"
 import { Screen } from "@/components/Screen"
 import { Text } from "@/components/Text"
 import { TextField } from "@/components/TextField"
 import type { DemoTabScreenProps } from "@/navigators/DemoNavigator"
+import { api } from "@/services/api"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
-type ActionType = "audio" | "sintomas" | "area-verde"
-type FilterType = "poluicao" | "sintomas" | "areas-verdes"
+// ============================================================================
+// Types
+// ============================================================================
+
+type ActionType = "audio" | "area-verde"
+type FilterType = "poluicao" | "areas-verdes"
+
+interface HeatmapPoint {
+  latitude: number
+  longitude: number
+  weight: number
+}
+
+interface NominatimSearchResult {
+  lat: string
+  lon: string
+  display_name: string
+  addresstype?: string
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const INITIAL_REGION: Region = {
+  latitude: -23.483134,
+  longitude: -46.500682,
+  latitudeDelta: 0.0922,
+  longitudeDelta: 0.0421,
+}
+
+const NOMINATIM_API_URL = "https://nominatim.openstreetmap.org/search"
+const SEARCH_DEBOUNCE_MS = 1000
+const LOCATION_ANIMATION_DURATION_MS = 1000
+
+const ZOOM_FACTOR_BASE = 0.0922
+const MIN_MAP_DELTA = 0.005
+const MAX_MAP_DELTA = 1.5
+const HEATMAP_RADIUS_BASE = 40
+const MIN_HEATMAP_RADIUS = 20
+const MAX_HEATMAP_RADIUS = 80
+const HEATMAP_OPACITY = 0.7
+
+const HEATMAP_COLORS = {
+  HIGH: "#ff0000",
+  MEDIUM_HIGH: "#ff9900",
+  MEDIUM: "#ffff00",
+  LOW: "#00ff00",
+} as const
+
+const WEIGHT_THRESHOLDS = {
+  HIGH: 0.8,
+  MEDIUM_HIGH: 0.6,
+  MEDIUM: 0.4,
+} as const
+
+const HEATMAP_GRADIENT = {
+  colors: [
+    HEATMAP_COLORS.LOW,
+    "#c8ff00",
+    HEATMAP_COLORS.MEDIUM,
+    HEATMAP_COLORS.MEDIUM_HIGH,
+    HEATMAP_COLORS.HIGH,
+  ],
+  startPoints: [
+    0,
+    WEIGHT_THRESHOLDS.MEDIUM / 2,
+    WEIGHT_THRESHOLDS.MEDIUM,
+    WEIGHT_THRESHOLDS.MEDIUM_HIGH,
+    1,
+  ],
+  colorMapSize: 512,
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+const clampDelta = (value: number): number =>
+  Math.min(MAX_MAP_DELTA, Math.max(MIN_MAP_DELTA, value))
+
+const normalizeRegion = (targetRegion: Region): Region => ({
+  ...targetRegion,
+  latitudeDelta: clampDelta(targetRegion.latitudeDelta),
+  longitudeDelta: clampDelta(targetRegion.longitudeDelta),
+})
+
+const getHeatmapRadius = (latitudeDelta: number): number => {
+  const zoomRatio = ZOOM_FACTOR_BASE / Math.max(latitudeDelta, MIN_MAP_DELTA)
+  const radius = HEATMAP_RADIUS_BASE * zoomRatio
+  return Math.min(MAX_HEATMAP_RADIUS, Math.max(MIN_HEATMAP_RADIUS, Math.round(radius)))
+}
+
+/**
+ * Sample heatmap data for different filter types
+ * In production, this would come from an API
+ */
+const SAMPLE_HEATMAP_DATA: HeatmapPoint[] = [
+  { latitude: -23.483134, longitude: -46.500682, weight: 1.0 },
+  { latitude: -23.484134, longitude: -46.501682, weight: 0.8 },
+  { latitude: -23.482134, longitude: -46.499682, weight: 0.6 },
+  { latitude: -23.485134, longitude: -46.502682, weight: 0.9 },
+  { latitude: -23.481134, longitude: -46.498682, weight: 0.7 },
+]
+
+const AREAS_VERDES_HEATMAP_DATA: HeatmapPoint[] = [
+  { latitude: -23.483134, longitude: -46.500682, weight: 0.9 },
+  { latitude: -23.485134, longitude: -46.502682, weight: 1.0 },
+]
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_props) {
   const { themed, theme } = useAppTheme()
+  const mapRef = useRef<MapView>(null)
 
+  // State management
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [currentAction, setCurrentAction] = useState<ActionType | undefined>(undefined)
   const [activeFilter, setActiveFilter] = useState<FilterType>("poluicao")
-  const [mapCenter, setMapCenter] = useState<LatLngLiteral>({ lat: -23.5489, lng: -46.6388 })
-  const [mapZoom, setMapZoom] = useState(13)
-  const [markers, setMarkers] = useState<MapMarker[]>([])
+  const [region, setRegion] = useState<Region>(INITIAL_REGION)
+  const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>(SAMPLE_HEATMAP_DATA)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
 
-  const mapLayers: MapLayer[] = [
-    {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      baseLayerIsChecked: true,
-      baseLayerName: "OpenStreetMap",
-      layerType: "TileLayer",
-      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    },
-  ]
+  const heatmapRadius = useMemo(
+    () => getHeatmapRadius(region.latitudeDelta),
+    [region.latitudeDelta],
+  )
 
+  // Request location permission on mount
   useEffect(() => {
     requestLocationPermission()
   }, [])
 
-  const requestLocationPermission = async () => {
+  // Fetch heatmap data when filter changes
+  useEffect(() => {
+    if (activeFilter === "poluicao") {
+      fetchHeatmapData()
+    } else {
+      updateHeatmapForFilter(activeFilter)
+    }
+  }, [activeFilter])
+
+  /**
+   * Request foreground location permissions
+   */
+  const requestLocationPermission = async (): Promise<void> => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync()
       if (status !== "granted") {
@@ -68,54 +177,47 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
     }
   }
 
-  const handleGetUserLocation = async () => {
-    setIsLoadingLocation(true)
-    try {
-      const { status } = await Location.getForegroundPermissionsAsync()
-
-      if (status !== "granted") {
-        Alert.alert(
-          "Permissão necessária",
-          "Por favor, permita o acesso à localização nas configurações do aplicativo.",
-        )
-        setIsLoadingLocation(false)
-        return
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      })
-
-      const userPos: LatLngLiteral = {
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-      }
-
-      setMapCenter(userPos)
-      setMapZoom(16)
-
-      const userMarker: MapMarker = {
-        id: "user-location",
-        position: userPos,
-        icon: "🔵",
-        size: [35, 35],
-      }
-
-      setMarkers((prev) => {
-        const filtered = prev.filter((m) => m.id !== "user-location")
-        return [...filtered, userMarker]
-      })
-
-      console.log("User location set:", userPos)
-    } catch (error) {
-      console.error("Error getting location:", error)
-      Alert.alert("Erro", "Não foi possível obter sua localização.")
-    } finally {
-      setIsLoadingLocation(false)
+  /**
+   * Update heatmap data based on selected filter
+   */
+  const updateHeatmapForFilter = (filter: FilterType): void => {
+    switch (filter) {
+      case "poluicao":
+        setHeatmapData(SAMPLE_HEATMAP_DATA)
+        break
+      case "areas-verdes":
+        setHeatmapData(AREAS_VERDES_HEATMAP_DATA)
+        break
+      default:
+        setHeatmapData(SAMPLE_HEATMAP_DATA)
     }
   }
 
-  const handleSearch = async () => {
+  /**
+   * Fetch heatmap data from API for poluição sonora
+   */
+  const fetchHeatmapData = async (): Promise<void> => {
+    try {
+      const response = await api.getHeatmapData()
+
+      if (response.kind === "ok") {
+        setHeatmapData(response.data.points)
+      } else {
+        console.error("Failed to fetch heatmap data:", response.kind)
+        // Fallback to sample data if API fails
+        setHeatmapData(SAMPLE_HEATMAP_DATA)
+      }
+    } catch (error) {
+      console.error("Error fetching heatmap data:", error)
+      // Fallback to sample data on error
+      setHeatmapData(SAMPLE_HEATMAP_DATA)
+    }
+  }
+
+  /**
+   * Search for location using OpenStreetMap Nominatim API
+   */
+  const handleSearch = async (): Promise<void> => {
     if (!searchQuery.trim()) {
       Alert.alert("Aviso", "Digite um local para buscar")
       return
@@ -123,10 +225,10 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
 
     setIsSearching(true)
     try {
-      // Add delay to respect Nominatim rate limits
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Debounce to prevent API rate limiting
+      await new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS))
 
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      const url = `${NOMINATIM_API_URL}?format=json&q=${encodeURIComponent(
         searchQuery,
       )}&limit=1&addressdetails=1`
 
@@ -146,34 +248,28 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
       }
 
       const text = await response.text()
-      let results
+      let results: NominatimSearchResult[]
 
       try {
         results = JSON.parse(text)
       } catch (parseError) {
         console.error("JSON parse error:", parseError)
-        console.error("Response text:", text.substring(0, 200))
         throw new Error("Resposta inválida do servidor")
       }
 
       if (results && results.length > 0) {
         const result = results[0]
-        const searchPos: LatLngLiteral = {
-          lat: parseFloat(result.lat),
-          lng: parseFloat(result.lon),
+        const newRegion: Region = {
+          latitude: parseFloat(result.lat),
+          longitude: parseFloat(result.lon),
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
         }
 
-        setMapCenter(searchPos)
-        setMapZoom(16)
+        const normalizedRegion = normalizeRegion(newRegion)
 
-        const searchMarker: MapMarker = {
-          id: `search-${Date.now()}`,
-          position: searchPos,
-          icon: "🔍",
-          size: [30, 30],
-        }
-
-        setMarkers((prev) => [...prev, searchMarker])
+        setRegion(normalizedRegion)
+        mapRef.current?.animateToRegion(normalizedRegion, LOCATION_ANIMATION_DURATION_MS)
         setSearchQuery("")
       } else {
         Alert.alert("Não encontrado", "Nenhum local encontrado com esse nome.")
@@ -187,85 +283,108 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
     }
   }
 
-  const handleZoomIn = () => {
-    setMapZoom((prev) => Math.min(prev + 1, 18))
+  /**
+   * Center map on user's current location
+   */
+  const handleGoToUserLocation = async (): Promise<void> => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync()
+      if (status !== "granted") {
+        Alert.alert("Permissão necessária", "Permita acesso à localização para usar este recurso.")
+        return
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      })
+
+      const userRegion: Region = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }
+
+      const normalizedRegion = normalizeRegion(userRegion)
+      setRegion(normalizedRegion)
+      mapRef.current?.animateToRegion(normalizedRegion, LOCATION_ANIMATION_DURATION_MS)
+    } catch (error) {
+      console.error("Error getting user location:", error)
+      Alert.alert("Erro", "Não foi possível obter sua localização.")
+    }
   }
 
-  const handleZoomOut = () => {
-    setMapZoom((prev) => Math.max(prev - 1, 1))
-  }
-
-  const handleActionPress = (action: ActionType) => {
+  /**
+   * Open action modal
+   */
+  const handleActionPress = (action: ActionType): void => {
     setCurrentAction(action)
     setIsModalVisible(true)
   }
 
-  const closeModal = () => {
+  /**
+   * Close action modal
+   */
+  const closeModal = (): void => {
     setIsModalVisible(false)
     setCurrentAction(undefined)
   }
 
-  const handleFilterPress = (filter: FilterType) => {
+  /**
+   * Handle filter button press
+   */
+  const handleFilterPress = (filter: FilterType): void => {
     setActiveFilter(filter)
   }
 
-  const getButtonLabel = () => {
-    switch (activeFilter) {
-      case "poluicao":
-        return "enviar audio"
-      case "sintomas":
-        return "enviar sintomas"
-      case "areas-verdes":
-        return "reportar área verde"
-      default:
-        return "enviar"
+  /**
+   * Handle successful audio submission
+   */
+  const handleAudioSubmitSuccess = (): void => {
+    // Refresh heatmap data after successful submission
+    if (activeFilter === "poluicao") {
+      fetchHeatmapData()
     }
   }
 
-  const getButtonAction = (): ActionType => {
+  /**
+   * Get button configuration based on active filter
+   */
+  const getButtonConfig = () => {
     switch (activeFilter) {
       case "poluicao":
-        return "audio"
-      case "sintomas":
-        return "sintomas"
+        return {
+          label: "enviar audio",
+          action: "audio" as ActionType,
+          icon: "components" as const,
+        }
       case "areas-verdes":
-        return "area-verde"
+        return {
+          label: "reportar área verde",
+          action: "area-verde" as ActionType,
+          icon: "check" as const,
+        }
       default:
-        return "audio"
+        return {
+          label: "enviar",
+          action: "audio" as ActionType,
+          icon: "components" as const,
+        }
     }
   }
 
-  const getButtonIcon = () => {
-    switch (activeFilter) {
-      case "poluicao":
-        return "components"
-      case "sintomas":
-        return "community"
-      case "areas-verdes":
-        return "check"
-      default:
-        return "components"
-    }
-  }
-
-  const handleMapMessage = (event: LeafletWebViewEvent) => {
-    if (event.tag === "onMapClicked") {
-      const newMarker: MapMarker = {
-        id: `marker-${Date.now()}`,
-        position: event.location,
-        icon: "📍",
-        size: [30, 30],
-      }
-      setMarkers((prev) => [...prev, newMarker])
-    }
-  }
+  const buttonConfig = getButtonConfig()
 
   return (
     <Screen preset="fixed" contentContainerStyle={themed($screenContainer)} safeAreaEdges={["top"]}>
+      {/* Filter Tabs */}
       <View style={themed($header)}>
         <Pressable
           style={themed([$filterButton, activeFilter === "poluicao" && $activeFilter])}
           onPress={() => handleFilterPress("poluicao")}
+          accessibilityRole="button"
+          accessibilityLabel="Filtrar por poluição sonora"
+          accessibilityState={{ selected: activeFilter === "poluicao" }}
         >
           <Text
             style={themed([$filterText, activeFilter === "poluicao" && $activeFilterText])}
@@ -274,18 +393,11 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         </Pressable>
 
         <Pressable
-          style={themed([$filterButton, activeFilter === "sintomas" && $activeFilter])}
-          onPress={() => handleFilterPress("sintomas")}
-        >
-          <Text
-            style={themed([$filterText, activeFilter === "sintomas" && $activeFilterText])}
-            text="sintomas"
-          />
-        </Pressable>
-
-        <Pressable
           style={themed([$filterButton, activeFilter === "areas-verdes" && $activeFilter])}
           onPress={() => handleFilterPress("areas-verdes")}
+          accessibilityRole="button"
+          accessibilityLabel="Filtrar por áreas verdes"
+          accessibilityState={{ selected: activeFilter === "areas-verdes" }}
         >
           <Text
             style={themed([$filterText, activeFilter === "areas-verdes" && $activeFilterText])}
@@ -294,96 +406,114 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         </Pressable>
       </View>
 
+      {/* Map Container */}
       <View style={$mapContainer}>
-        <LeafletView
-          mapLayers={mapLayers}
-          mapMarkers={markers}
-          mapCenterPosition={mapCenter}
-          zoom={mapZoom}
-          onMessage={handleMapMessage}
-        />
-
-        <View style={themed($searchContainer)}>
-          <TextField
-            style={themed($searchInput)}
-            placeholder="Buscar localização..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-            editable={!isSearching}
-            containerStyle={themed($searchInputContainer)}
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          region={region}
+          initialRegion={INITIAL_REGION}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          showsCompass={true}
+          toolbarEnabled={false}
+          ref={mapRef}
+          style={$map}
+          onRegionChangeComplete={setRegion}
+          accessibilityLabel="Mapa de calor interativo"
+        >
+          <Heatmap
+            points={heatmapData}
+            radius={heatmapRadius}
+            gradient={HEATMAP_GRADIENT}
+            opacity={HEATMAP_OPACITY}
           />
-          <Pressable style={themed($searchButton)} onPress={handleSearch} disabled={isSearching}>
-            {isSearching ? (
-              <ActivityIndicator size="small" color={theme.colors.palette.neutral100} />
-            ) : (
-              <Text style={themed($searchButtonText)}>🔍</Text>
-            )}
-          </Pressable>
-        </View>
+        </MapView>
 
-        <View style={themed($mapControls)}>
-          <Pressable
-            style={themed($controlButton)}
-            onPress={handleGetUserLocation}
-            disabled={isLoadingLocation}
-          >
-            {isLoadingLocation ? (
-              <ActivityIndicator size="small" color={theme.colors.text} />
-            ) : (
-              <Text style={themed($gpsButtonText)}>📍</Text>
+        {/* Search Bar */}
+        <View style={themed($searchContainer)}>
+          <View style={themed($searchBarWrapper)}>
+            <Ionicons
+              name="search"
+              size={20}
+              color={theme.colors.palette.neutral600}
+              style={themed($searchIcon)}
+            />
+            <TextField
+              style={themed($searchInput)}
+              placeholder="Buscar no mapa"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+              editable={!isSearching}
+              containerStyle={themed($searchInputContainer)}
+              inputWrapperStyle={themed($searchInputWrapper)}
+              accessibilityLabel="Campo de busca de localização"
+            />
+            {searchQuery.length > 0 && (
+              <Pressable
+                style={themed($clearButton)}
+                onPress={() => setSearchQuery("")}
+                accessibilityRole="button"
+                accessibilityLabel="Limpar busca"
+              >
+                <Ionicons name="close" size={20} color={theme.colors.palette.neutral600} />
+              </Pressable>
             )}
-          </Pressable>
-
-          <View style={themed($zoomControls)}>
-            <Pressable style={themed($controlButton)} onPress={handleZoomIn}>
-              <Text style={themed($zoomText)}>+</Text>
-            </Pressable>
-            <View style={themed($zoomDivider)} />
-            <Pressable style={themed($controlButton)} onPress={handleZoomOut}>
-              <Text style={themed($zoomText)}>−</Text>
-            </Pressable>
           </View>
         </View>
+
+        {/* Location Button */}
+        <TouchableOpacity
+          style={themed($locationButton)}
+          onPress={handleGoToUserLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Ir para minha localização"
+          activeOpacity={0.8}
+        >
+          <Ionicons name="locate" size={24} color={theme.colors.palette.neutral800} />
+        </TouchableOpacity>
       </View>
 
+      {/* Bottom Action Button */}
       <View style={themed($bottomButtonContainer)}>
         <Button
           style={themed($bottomButton)}
           textStyle={themed($bottomButtonText)}
-          onPress={() => handleActionPress(getButtonAction())}
+          onPress={() => handleActionPress(buttonConfig.action)}
           LeftAccessory={(props) => (
-            <Icon icon={getButtonIcon()} size={20} containerStyle={props.style} />
+            <Icon icon={buttonConfig.icon} size={20} containerStyle={props.style} />
           )}
+          accessibilityLabel={buttonConfig.label}
         >
-          {getButtonLabel()}
+          {buttonConfig.label}
         </Button>
       </View>
 
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeModal}
-      >
-        <View style={themed($modalContainer)}>
-          <View style={themed($modalHeader)}>
-            <Pressable style={themed($closeButton)} onPress={closeModal}>
-              <Icon icon="x" size={24} />
-            </Pressable>
-          </View>
-          <ActionPlaceholder actionType={currentAction} />
-        </View>
-      </Modal>
+      {/* Modals */}
+      <PoluicaoSonoraModal
+        visible={isModalVisible && currentAction === "audio"}
+        onClose={closeModal}
+        onSuccess={handleAudioSubmitSuccess}
+      />
+
+      <AreasVerdesModal
+        visible={isModalVisible && currentAction === "area-verde"}
+        onClose={closeModal}
+      />
     </Screen>
   )
 }
+
+// ============================================================================
+// Styles
+// ============================================================================
 
 const $screenContainer: ThemedStyle<ViewStyle> = () => ({
   flex: 1,
 })
 
+// Header Styles
 const $header: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   flexDirection: "row",
   justifyContent: "space-around",
@@ -393,6 +523,7 @@ const $header: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   backgroundColor: colors.background,
   borderBottomWidth: 1,
   borderBottomColor: colors.border,
+  zIndex: 10,
 })
 
 const $filterButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
@@ -417,108 +548,90 @@ const $activeFilterText: ThemedStyle<TextStyle> = ({ colors }) => ({
   fontWeight: "bold",
 })
 
+// Map Styles
 const $mapContainer: ViewStyle = {
   flex: 1,
   position: "relative",
+  width: "100%",
 }
 
-const $searchContainer: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
+const $map: ViewStyle = {
+  flex: 1,
+}
+
+// Search Bar Styles
+const $searchContainer: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   position: "absolute",
   top: spacing.md,
   left: spacing.md,
   right: spacing.md,
-  flexDirection: "row",
-  alignItems: "center",
-  backgroundColor: colors.background,
-  borderRadius: 12,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.25,
-  shadowRadius: 3.84,
-  elevation: 5,
   zIndex: 1000,
 })
 
-const $searchInputContainer: ThemedStyle<ViewStyle> = () => ({
+const $searchBarWrapper: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: colors.palette.neutral100,
+  borderRadius: 28,
+  paddingHorizontal: spacing.md,
+  paddingVertical: spacing.xs,
+  shadowColor: colors.palette.neutral900,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.15,
+  shadowRadius: 8,
+  elevation: 4,
+})
+
+const $searchIcon: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  marginRight: spacing.xs,
+})
+
+const $searchInputContainer: ThemedStyle<ViewStyle> = ({ colors }) => ({
   flex: 1,
-  backgroundColor: "transparent",
+  backgroundColor: colors.transparent,
+  minHeight: 40,
+})
+
+const $searchInputWrapper: ThemedStyle<ViewStyle> = ({ colors }) => ({
+  flex: 1,
+  borderWidth: 0,
+  backgroundColor: colors.transparent,
+  minHeight: 40,
 })
 
 const $searchInput: ThemedStyle<TextStyle> = ({ colors }) => ({
-  height: 48,
   fontSize: 16,
   color: colors.text,
   backgroundColor: "transparent",
+  minHeight: 40,
 })
 
-const $searchButton: ThemedStyle<ViewStyle> = ({ colors }) => ({
-  height: 48,
-  width: 48,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: colors.palette.primary500,
-  borderTopRightRadius: 12,
-  borderBottomRightRadius: 12,
+const $clearButton: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+  padding: spacing.xxs,
+  marginLeft: spacing.xs,
 })
 
-const $searchButtonText: ThemedStyle<TextStyle> = () => ({
-  fontSize: 20,
-})
-
-const $gpsButtonText: ThemedStyle<TextStyle> = () => ({
-  fontSize: 24,
-})
-
-const $mapControls: ThemedStyle<ViewStyle> = ({ spacing }) => ({
+// Location Button Styles
+const $locationButton: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   position: "absolute",
   right: spacing.md,
-  bottom: 100,
-  gap: spacing.sm,
+  bottom: spacing.xl + 16,
+  width: 48,
+  height: 48,
+  borderRadius: 24,
+  backgroundColor: colors.palette.neutral100,
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: colors.palette.neutral900,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+  elevation: 4,
   zIndex: 1000,
 })
 
-const $controlButton: ThemedStyle<ViewStyle> = ({ colors, spacing: _spacing }) => ({
-  width: 48,
-  height: 48,
-  borderRadius: 24,
-  backgroundColor: colors.background,
-  alignItems: "center",
-  justifyContent: "center",
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.25,
-  shadowRadius: 3.84,
-  elevation: 5,
-})
-
-const $zoomControls: ThemedStyle<ViewStyle> = ({ colors }) => ({
-  backgroundColor: colors.background,
-  borderRadius: 24,
-  overflow: "hidden",
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.25,
-  shadowRadius: 3.84,
-  elevation: 5,
-})
-
-const $zoomDivider: ThemedStyle<ViewStyle> = ({ colors }) => ({
-  height: 1,
-  backgroundColor: colors.border,
-})
-
-const $zoomText: ThemedStyle<TextStyle> = ({ colors }) => ({
-  fontSize: 24,
-  fontWeight: "600",
-  color: colors.text,
-  lineHeight: 24,
-})
-
+// Bottom Button Styles
 const $bottomButtonContainer: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  right: 0,
   paddingHorizontal: spacing.xl,
   paddingVertical: spacing.md,
   backgroundColor: colors.background,
@@ -526,6 +639,7 @@ const $bottomButtonContainer: ThemedStyle<ViewStyle> = ({ spacing, colors }) => 
   borderTopColor: colors.border,
   alignItems: "center",
   justifyContent: "center",
+  zIndex: 10,
 })
 
 const $bottomButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
@@ -541,22 +655,3 @@ const $bottomButtonText: ThemedStyle<TextStyle> = ({ typography }) => ({
   fontSize: 16,
   fontFamily: typography.primary.medium,
 })
-
-const $modalContainer: ThemedStyle<ViewStyle> = ({ colors }) => ({
-  flex: 1,
-  backgroundColor: colors.background,
-})
-
-const $modalHeader: ThemedStyle<ViewStyle> = ({ spacing }) => ({
-  flexDirection: "row",
-  justifyContent: "flex-end",
-  paddingHorizontal: spacing.md,
-  paddingTop: spacing.md,
-})
-
-const $closeButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
-  padding: spacing.xs,
-  borderRadius: 20,
-  backgroundColor: colors.palette.neutral200,
-})
-;("")
