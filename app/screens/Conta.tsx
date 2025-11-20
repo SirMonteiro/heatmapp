@@ -1,13 +1,40 @@
-import { View, Text, StyleSheet, Image, Pressable } from "react-native"
+import { View, Text, StyleSheet, Image, Pressable , ActivityIndicator} from "react-native"
+import React, { useEffect, useState, useCallback } from "react"
 import { Screen } from "@/components/Screen"
 import { useNavigation } from "@react-navigation/native"
 import { useAppTheme } from "@/theme/context"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
+import { Separator } from "@/components/Separator"
+import { Button } from "@/components/Button"
+import { UserData } from "@/services/api/types"
+import { useAuth } from "@/context/AuthContext"
+import { api } from "@/services/api"
+
 
 export function Conta() {
   const navigation = useNavigation()
   const { theme } = useAppTheme()
   const { colors } = theme
+  const { logout } = useAuth()
+
+  const [user, setUser] = useState<UserData | null>(null)
+  const [loadingUser, setLoadingUser] = useState<boolean>(true)
+
+  const loadUser = useCallback(async () => {
+      setLoadingUser(true)
+      const res = await api.getCurrentUser()
+      if (res.kind === "ok") setUser(res.data)
+      else {
+        console.warn("Conta: não foi possível carregar current_user", res)
+        setUser(null)
+      }
+      setLoadingUser(false)
+    }, [])
+
+    useEffect(() => {
+    loadUser()
+  }, [loadUser])
+
 
   return (
     <Screen preset="scroll" contentContainerStyle={styles.container}>
@@ -19,17 +46,45 @@ export function Conta() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Configurações</Text>
       </View>
 
-      {/* Corpo da tela */}
-      <View style={styles.content}>
-        <Image
-          source={require("../../assets/images/harakicringe.png")} 
-          style={styles.image}
-        />
-        <Text style={[styles.text, { color: colors.text }]}>
-          Aplicativo desenvolvido por <Text style={{color: "#006FFD"}}>RuntimeTerror Group</Text>, visando o progresso da civilização humana. 
-          {"\n\n"}
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec et libero id quam rutrum pharetra. Nulla nec scelerisque ante. Suspendisse dignissim sem lectus, a molestie risus elementum a. Phasellus pulvinar magna eu ullamcorper ultricies. 
+      {loadingUser && (
+        <View style={{ marginTop: 40 }}>
+          <ActivityIndicator size="large" color="#006FFD" />
+        </View>
+      )}
+
+      {/* Erro */}
+      {!loadingUser && !user && (
+        <Text style={{ marginTop: 40, color: "red" }}>
+          Não foi possível carregar seus dados.
         </Text>
+      )}
+
+      <View style={styles.content}>
+        <Text style={styles.text}>Nome de Usuário</Text>
+        <Text style={styles.textDado}>{user?.username}</Text>
+        <Separator/>
+        <Text>{"\n"}</Text>
+        <Text style={styles.text}>Nome</Text>
+        <Text style={styles.textDado}>{user?.first_name}</Text>
+        <Separator/>
+        <Text>{"\n"}</Text>
+        <Text style={styles.text}>Sobrenome</Text>
+        <Text style={styles.textDado}>{user?.last_name}</Text>
+        <Separator/>
+        <Text>{"\n"}</Text>
+        <Text style={styles.text}>Email</Text>
+        <Text style={styles.textDado}>{user?.email}</Text>
+        <Separator/>
+        <Text>{"\n\n"}</Text>
+
+        <Button
+        text="Desconectar"
+        preset="filled"
+        onPress={logout}
+        style={[styles.botao]} // wooow
+        textStyle={{ color: "#FFF", fontWeight: "700" }}
+        />
+
       </View>
     </Screen>
   )
@@ -42,13 +97,13 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center", // centraliza o título
+    justifyContent: "center", 
     marginBottom: 24,
   },
   backButton: {
     marginTop: 16,
     position: "absolute",
-    left: 0, // mantém o botão fixo à esquerda sem deslocar o título
+    left: 0, 
     padding: 8,
   },
   headerTitle: {
@@ -70,11 +125,28 @@ const styles = StyleSheet.create({
   },
   text: {
     width: 342,
-    height: 160,
-    fontSize: 14,
+    fontSize: 20,
+    lineHeight: 20,
+    fontFamily: "Inter-Bold",
+    fontWeight: 400,
+    textAlign: "left"
+  },
+  textDado: {
+    color: "#7a7a7aff",
+    marginTop: 6,
+    width: 342,
+    fontSize: 20,
     lineHeight: 20,
     fontFamily: "Inter-Regular",
     fontWeight: 400,
     textAlign: "left"
+  },
+  botao: {
+    backgroundColor: "#e72e2eff",
+    borderRadius: 12,
+    height: 36,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
 })

@@ -16,13 +16,8 @@ export function Configuracoes() {
       <Text style={[styles.header, { color: colors.text }]}>Configurações</Text>
 
       <View style={[styles.section, { backgroundColor: colors.background }]}>
-        <Pressable style={styles.item} onPress={() => console.log("Ajustes da conta")}>
+        <Pressable style={styles.item} onPress={() => navigation.navigate("Conta" as never)}>
           <Text style={styles.itemText}>Configurações da Conta</Text>
-          <MaterialIcons name="arrow-forward-ios" size={24} color="black" />
-        </Pressable>
-
-        <Pressable style={styles.item} onPress={() => console.log("Ajustes da conta")}>
-          <Text style={styles.itemText}>Notificações</Text>
           <MaterialIcons name="arrow-forward-ios" size={24} color="black" />
         </Pressable>
 
@@ -30,11 +25,6 @@ export function Configuracoes() {
           <Text style={styles.itemText}>Sobre</Text>
           <MaterialIcons name="arrow-forward-ios" size={24} color="black" />
         </Pressable>
-
-        {/* <Pressable style={styles.item} onPress={() => console.log("Crueldade")}>
-          <Text style={styles.itemText}>Escolher qual letalidade inflingir em OgawaSama</Text>
-          <MaterialIcons name="arrow-forward-ios" size={24} color="black" />
-        </Pressable> */}
 
       </View>
     </Screen>
@@ -61,9 +51,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#ccc",
-    flexDirection: "row",        // <-- coloca o texto e o ícone lado a lado
-    justifyContent: "space-between", // <-- empurra o ícone pra direita
-    alignItems: "center",        // <-- centraliza verticalmente
+    flexDirection: "row",        
+    justifyContent: "space-between", 
+    alignItems: "center",        
   },
   itemText: {
     fontSize: 16,

@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, Image, Pressable } from "react-native"
+import { View, Text, StyleSheet, Image, Pressable, Linking} from "react-native"
 import { Screen } from "@/components/Screen"
-import { useNavigation } from "@react-navigation/native"
+import { Link, useNavigation } from "@react-navigation/native"
 import { useAppTheme } from "@/theme/context"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 
@@ -19,16 +19,19 @@ export function Sobre() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Configurações</Text>
       </View>
 
-      {/* Corpo da tela */}
       <View style={styles.content}>
         <Image
           source={require("../../assets/images/harakicringe.png")} 
           style={styles.image}
         />
         <Text style={[styles.text, { color: colors.text }]}>
-          Aplicativo desenvolvido por <Text style={{color: "#006FFD"}}>RuntimeTerror Group</Text>, visando o progresso da civilização humana. 
+          Aplicativo desenvolvido por <Text style={{color: "#006FFD"}}>RuntimeTerror Group</Text> na matéria Resolução de Problemas II na EACH-USP. 
           {"\n\n"}
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec et libero id quam rutrum pharetra. Nulla nec scelerisque ante. Suspendisse dignissim sem lectus, a molestie risus elementum a. Phasellus pulvinar magna eu ullamcorper ultricies. 
+          O repositório com o código para o projeto se encontra {'  '} 
+          <Text
+          accessibilityLabel="Pressione para abrir o link" 
+          onPress={() => {Linking.openURL('https://github.com/SirMonteiro/heatmapp')}}
+          style={{color: "#006FFD"}}>aqui</Text>.
         </Text>
       </View>
     </Screen>
@@ -42,13 +45,13 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center", // centraliza o título
+    justifyContent: "center", 
     marginBottom: 24,
   },
   backButton: {
     marginTop: 16,
     position: "absolute",
-    left: 0, // mantém o botão fixo à esquerda sem deslocar o título
+    left: 0, 
     padding: 8,
   },
   headerTitle: {
