@@ -356,6 +356,7 @@ export class Api {
       method: "post",
       url: "posts_ruido/",
       data: {
+        user: payload.user,
         local_latitude: payload.latitude,
         local_longitude: payload.longitude,
         decibeis: payload.decibel,

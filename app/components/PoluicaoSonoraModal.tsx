@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, useRef } from "react"
+import { FC, useState, useEffect, useRef, useCallback } from "react"
 import {
   Modal,
   Pressable,
@@ -18,6 +18,8 @@ import { Text } from "@/components/Text"
 import { api } from "@/services/api"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
+import { UserData } from "@/services/api/types"
+
 
 interface PoluicaoSonoraModalProps {
   visible: boolean
@@ -42,6 +44,25 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const decibelReadingsRef = useRef<number[]>([])
+
+  const [user, setUser] = useState<UserData | null>(null)
+  const [loadingUser, setLoadingUser] = useState<boolean>(true)
+  
+  const loadUser = useCallback(async () => {
+        setLoadingUser(true)
+        const res = await api.getCurrentUser()
+        if (res.kind === "ok") setUser(res.data)
+        else {
+          console.warn("Conta: não foi possível carregar current_user", res)
+          setUser(null)
+        }
+        setLoadingUser(false)
+      }, [])
+  
+      useEffect(() => {
+      loadUser()
+    }, [loadUser])
+  
 
   const clearRecordingTimers = (): void => {
     if (recordingTimerRef.current) {
@@ -175,6 +196,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
         decibel: averageDecibel,
       })
       const response = await api.submitAudioData({
+        user: user?.id,
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         decibel: averageDecibel,
@@ -307,7 +329,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
                 {isSubmitting ? (
                   <ActivityIndicator color={theme.colors.palette.neutral100} />
                 ) : (
-                  "Enviar"
+                  "ENVIAR"
                 )}
               </Button>
             )}
@@ -333,7 +355,8 @@ const $modalContent: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   borderTopLeftRadius: 20,
   borderTopRightRadius: 20,
   paddingBottom: spacing.xl,
-  height: "66%",
+  height: "85%",
+  maxHeight: "85%",
   shadowColor: colors.palette.neutral900,
   shadowOffset: { width: 0, height: -2 },
   shadowOpacity: 0.25,

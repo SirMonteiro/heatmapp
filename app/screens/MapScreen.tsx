@@ -405,13 +405,13 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
     switch (activeFilter) {
       case "poluicao":
         return {
-          label: "enviar audio",
+          label: "ENVIAR ÁUDIO",
           action: "audio" as ActionType,
           icon: "components" as const,
         }
       case "areas-verdes":
         return {
-          label: "reportar área verde",
+          label: "REPORTAR ÁREA VERDE",
           action: "area-verde" as ActionType,
           icon: "check" as const,
         }
@@ -439,7 +439,7 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         >
           <Text
             style={themed([$filterText, activeFilter === "poluicao" && $activeFilterText])}
-            text="Poluição sonora"
+            text="POLUIÇÃO SONORA"
           />
         </Pressable>
 
@@ -452,7 +452,7 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         >
           <Text
             style={themed([$filterText, activeFilter === "areas-verdes" && $activeFilterText])}
-            text="áreas verdes"
+            text="ÁREAS VERDES"
           />
         </Pressable>
       </View>

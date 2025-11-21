@@ -90,6 +90,7 @@ export interface IconeComprado {
   icone: number
 }
 export interface AudioSubmissionRequest {
+  user: number | undefined
   latitude: number
   longitude: number
   decibel: number

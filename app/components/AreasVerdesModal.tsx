@@ -343,7 +343,7 @@ export const AreasVerdesModal: FC<AreasVerdesModalProps> = ({ visible, onClose, 
                 {isSubmitting ? (
                   <ActivityIndicator color={theme.colors.palette.neutral100} />
                 ) : (
-                  "Enviar"
+                  "ENVIAR"
                 )}
               </Button>
             </View>
@@ -369,7 +369,7 @@ const $modalContent: ThemedStyle<ViewStyle> = ({ colors, spacing }) => ({
   borderTopLeftRadius: 20,
   borderTopRightRadius: 20,
   paddingBottom: spacing.sm,
-  height: "80%",
+  height: "85%",
   shadowColor: colors.palette.neutral900,
   shadowOffset: { width: 0, height: -2 },
   shadowOpacity: 0.25,
