@@ -54,6 +54,9 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
     }
   }
 
+  const hasRecording = averageDecibel !== null
+  const canSubmit = hasRecording && !isRecording && !isSubmitting
+
   useEffect(() => {
     return () => {
       clearRecordingTimers()
@@ -293,19 +296,21 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
             </View>
 
             {/* Submit Button */}
-            <Button
-              style={themed($submitButton)}
-              textStyle={themed($submitButtonText)}
-              onPress={handleSubmit}
-              disabled={averageDecibel === null || isRecording || isSubmitting}
-              accessibilityLabel="Enviar áudio"
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={theme.colors.palette.neutral100} />
-              ) : (
-                "Enviar"
-              )}
-            </Button>
+            {!isRecording && (
+              <Button
+                style={themed($submitButton)}
+                textStyle={themed($submitButtonText)}
+                onPress={handleSubmit}
+                disabled={!canSubmit}
+                accessibilityLabel="Enviar áudio"
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color={theme.colors.palette.neutral100} />
+                ) : (
+                  "Enviar"
+                )}
+              </Button>
+            )}
           </View>
         </Pressable>
       </Pressable>
