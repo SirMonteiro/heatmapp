@@ -19,6 +19,8 @@ import type {
   IconeComprado,
   AudioSubmissionRequest,
   AudioSubmissionResponse,
+  AreaVerdeSubmissionRequest,
+  AreaVerdeSubmissionResponse,
   HeatmapDataResponse,
 } from "@/services/api/types"
 
@@ -358,6 +360,33 @@ export class Api {
         local_longitude: payload.longitude,
         decibeis: payload.decibel,
       },
+    })
+  }
+
+  async submitAreaVerdeData(
+    payload: AreaVerdeSubmissionRequest,
+  ): Promise<ApiResult<AreaVerdeSubmissionResponse>> {
+    const data: Record<string, unknown> = {
+      titulo: payload.titulo,
+      modo_acesso: payload.modoAcesso,
+      local_latitude: payload.latitude,
+      local_longitude: payload.longitude,
+    }
+
+    if (payload.descricao) {
+      data.descricao = payload.descricao
+    }
+
+    if (payload.imageBase64) {
+      data.imagem_base64 = payload.imageBase64
+      if (payload.imageContentType) data.imagem_content_type = payload.imageContentType
+      if (payload.imageFileName) data.imagem_nome = payload.imageFileName
+    }
+
+    return this.request<AreaVerdeSubmissionResponse>({
+      method: "post",
+      url: "posts_areas/",
+      data,
     })
   }
 

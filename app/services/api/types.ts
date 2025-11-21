@@ -103,6 +103,28 @@ export interface AudioSubmissionResponse {
   created_at: string
 }
 
+export interface AreaVerdeSubmissionRequest {
+  latitude: number
+  longitude: number
+  titulo: string
+  modoAcesso: string
+  descricao?: string
+  imageBase64: string
+  imageContentType?: string
+  imageFileName?: string
+}
+
+export interface AreaVerdeSubmissionResponse {
+  id: number
+  local_latitude: number
+  local_longitude: number
+  titulo: string
+  modo_acesso: string
+  descricao?: string
+  imagem_url?: string
+  created_at: string
+}
+
 export interface HeatmapPoint {
   latitude: number
   longitude: number
