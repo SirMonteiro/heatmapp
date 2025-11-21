@@ -104,6 +104,49 @@ const normalizeRegion = (targetRegion: Region): Region => ({
   longitudeDelta: clampDelta(targetRegion.longitudeDelta),
 })
 
+const normalizeHeatmapPoint = (rawPoint: unknown): HeatmapPoint | null => {
+  if (!rawPoint || typeof rawPoint !== "object") return null
+
+  const point = rawPoint as Record<string, unknown>
+  const latitude = Number(
+    point.latitude ?? point.lat ?? point.local_latitude ?? point.localLatitude,
+  )
+  const longitude = Number(
+    point.longitude ?? point.lon ?? point.local_longitude ?? point.localLongitude,
+  )
+  const rawWeight = Number(point.weight ?? point.intensity ?? point.decibel ?? point.decibeis)
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+
+  const weight = Number.isFinite(rawWeight) ? Math.max(0, rawWeight) : 1
+
+  return {
+    latitude,
+    longitude,
+    weight,
+  }
+}
+
+const parseHeatmapResponse = (
+  payload: unknown,
+): { points: HeatmapPoint[]; isValidPayload: boolean } => {
+  const possiblePoints = Array.isArray(payload)
+    ? payload
+    : typeof payload === "object" && payload !== null
+      ? (payload as Record<string, unknown>).points
+      : undefined
+
+  if (!Array.isArray(possiblePoints)) {
+    return { points: [], isValidPayload: false }
+  }
+
+  const points = possiblePoints
+    .map(normalizeHeatmapPoint)
+    .filter((point): point is HeatmapPoint => point !== null)
+
+  return { points, isValidPayload: true }
+}
+
 const getHeatmapRadius = (latitudeDelta: number): number => {
   const zoomRatio = ZOOM_FACTOR_BASE / Math.max(latitudeDelta, MIN_MAP_DELTA)
   const radius = HEATMAP_RADIUS_BASE * zoomRatio
@@ -144,6 +187,7 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
 
+  const hasHeatmapPoints = heatmapData.length > 0
   const heatmapRadius = useMemo(
     () => getHeatmapRadius(region.latitudeDelta),
     [region.latitudeDelta],
@@ -201,7 +245,14 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
       const response = await api.getHeatmapData()
 
       if (response.kind === "ok") {
-        setHeatmapData(response.data.points)
+        const { points, isValidPayload } = parseHeatmapResponse(response.data)
+
+        if (isValidPayload) {
+          setHeatmapData(points)
+        } else {
+          console.warn("Heatmap API returned an invalid payload. Falling back to sample data.")
+          setHeatmapData(SAMPLE_HEATMAP_DATA)
+        }
       } else {
         console.error("Failed to fetch heatmap data:", response.kind)
         // Fallback to sample data if API fails
@@ -421,12 +472,14 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
           onRegionChangeComplete={setRegion}
           accessibilityLabel="Mapa de calor interativo"
         >
-          <Heatmap
-            points={heatmapData}
-            radius={heatmapRadius}
-            gradient={HEATMAP_GRADIENT}
-            opacity={HEATMAP_OPACITY}
-          />
+          {hasHeatmapPoints && (
+            <Heatmap
+              points={heatmapData}
+              radius={heatmapRadius}
+              gradient={HEATMAP_GRADIENT}
+              opacity={HEATMAP_OPACITY}
+            />
+          )}
         </MapView>
 
         {/* Search Bar */}

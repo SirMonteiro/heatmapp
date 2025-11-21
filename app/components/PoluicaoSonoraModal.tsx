@@ -26,6 +26,7 @@ interface PoluicaoSonoraModalProps {
 }
 
 const RECORDING_DURATION_MS = 10000 // 10 seconds
+const RECORDING_DURATION_SECONDS = RECORDING_DURATION_MS / 1000
 
 export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   visible,
@@ -37,34 +38,40 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentDecibel, setCurrentDecibel] = useState<number | null>(null)
   const [averageDecibel, setAverageDecibel] = useState<number | null>(null)
-  const [timeRemaining, setTimeRemaining] = useState<number>(10)
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [timeRemaining, setTimeRemaining] = useState<number>(RECORDING_DURATION_SECONDS)
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const decibelReadingsRef = useRef<number[]>([])
 
-  useEffect(() => {
-    // Cleanup on unmount or when modal closes
-    return () => {
-      if (recordingTimerRef.current) {
-        clearTimeout(recordingTimerRef.current)
-      }
-      if (countdownTimerRef.current) {
-        clearInterval(countdownTimerRef.current)
-      }
-      if (isRecording) {
-        RNSoundLevel.stop()
-      }
+  const clearRecordingTimers = (): void => {
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current)
+      recordingTimerRef.current = null
     }
-  }, [isRecording])
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+      countdownTimerRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      clearRecordingTimers()
+      RNSoundLevel.stop()
+    }
+  }, [])
 
   const startRecording = async (): Promise<void> => {
     try {
+      if (__DEV__) console.log("Requesting microphone permission... started")
       // Reset states
       setCurrentDecibel(null)
       setAverageDecibel(null)
-      setTimeRemaining(10)
+      setTimeRemaining(RECORDING_DURATION_SECONDS)
       decibelReadingsRef.current = []
       setIsRecording(true)
+
+      clearRecordingTimers()
 
       // Start monitoring sound level
       RNSoundLevel.start()
@@ -79,16 +86,17 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
       }
 
       // Start countdown timer - update every second
-      let currentTime = 10
       countdownTimerRef.current = setInterval(() => {
-        currentTime -= 1
-        setTimeRemaining(currentTime)
+        setTimeRemaining((prev) => {
+          const nextValue = Math.max(prev - 1, 0)
+          if (__DEV__) console.log("Countdown tick", nextValue)
 
-        // Stop at 0
-        if (currentTime <= 0 && countdownTimerRef.current) {
-          clearInterval(countdownTimerRef.current)
-          countdownTimerRef.current = null
-        }
+          if (nextValue === 0) {
+            void stopRecording()
+          }
+
+          return nextValue
+        })
       }, 1000)
 
       // Stop recording after 10 seconds
@@ -114,14 +122,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   const stopRecording = async (): Promise<void> => {
     try {
       // Clear timers
-      if (recordingTimerRef.current) {
-        clearTimeout(recordingTimerRef.current)
-        recordingTimerRef.current = null
-      }
-      if (countdownTimerRef.current) {
-        clearInterval(countdownTimerRef.current)
-        countdownTimerRef.current = null
-      }
+      clearRecordingTimers()
 
       // Stop monitoring
       RNSoundLevel.stop()
@@ -165,11 +166,15 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
       })
 
       // Submit to API
+      console.log("Submitting audio data...", {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        decibel: averageDecibel,
+      })
       const response = await api.submitAudioData({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         decibel: averageDecibel,
-        audioUri: "", // Not needed with sound level monitoring
       })
 
       if (response.kind === "ok") {
@@ -191,7 +196,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
     // Reset state
     setAverageDecibel(null)
     setCurrentDecibel(null)
-    setTimeRemaining(10)
+    setTimeRemaining(RECORDING_DURATION_SECONDS)
     decibelReadingsRef.current = []
 
     // Stop recording if active
@@ -201,14 +206,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
     }
 
     // Clear timers
-    if (recordingTimerRef.current) {
-      clearTimeout(recordingTimerRef.current)
-      recordingTimerRef.current = null
-    }
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current)
-      countdownTimerRef.current = null
-    }
+    clearRecordingTimers()
 
     onClose()
   }

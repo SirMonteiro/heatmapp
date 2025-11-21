@@ -93,7 +93,6 @@ export interface AudioSubmissionRequest {
   latitude: number
   longitude: number
   decibel: number
-  audioUri: string
 }
 
 export interface AudioSubmissionResponse {
