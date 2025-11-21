@@ -6,6 +6,7 @@
  * documentation for more details.
  */
 import { ApiResponse, ApisauceInstance, create } from "apisauce"
+import { jwtDecode, type JwtPayload } from "jwt-decode"
 
 import Config from "@/config"
 import type {
@@ -44,6 +45,21 @@ type ApiRequestConfig = {
 
 type ApiResult<T> = { kind: "ok"; data: T } | GeneralApiProblem
 
+const TOKEN_REFRESH_THRESHOLD_MS = 60_000
+
+const decodeJwtExpiration = (token: string): number | undefined => {
+  try {
+    const payload = jwtDecode<JwtPayload>(token)
+    if (typeof payload?.exp === "number") return payload.exp * 1000
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("Failed to decode JWT payload", error)
+    }
+  }
+
+  return undefined
+}
+
 /**
  * Manages all requests to the API. You can use this class to build out
  * various requests that you need to call from your backend API.
@@ -51,6 +67,11 @@ type ApiResult<T> = { kind: "ok"; data: T } | GeneralApiProblem
 export class Api {
   apisauce: ApisauceInstance
   config: ApiConfig
+  private accessToken?: string
+  private refreshToken?: string
+  private accessTokenExpiresAt?: number
+  private tokenRefreshPromise: Promise<boolean> | null = null
+  private tokensChangeHandler?: (tokens: { accessToken?: string; refreshToken?: string }) => void
 
   constructor(config: ApiConfig = DEFAULT_API_CONFIG) {
     this.config = config
@@ -67,13 +88,22 @@ export class Api {
    * Generic request helper used by the specific API methods.
    */
   async request<T>(config: ApiRequestConfig): Promise<ApiResult<T>> {
-    const response: ApiResponse<T> = await this.apisauce.any<T>({
-      method: config.method ?? "get",
-      url: config.url,
-      data: config.data,
-      params: config.params,
-      headers: config.headers,
-    })
+    await this.ensureValidAccessToken()
+
+    const makeRequest = async (): Promise<ApiResponse<T>> =>
+      this.apisauce.any<T>({
+        method: config.method ?? "get",
+        url: config.url,
+        data: config.data,
+        params: config.params,
+        headers: config.headers,
+      })
+
+    let response = await makeRequest()
+
+    if (response.status === 401 && (await this.refreshAccessToken(true))) {
+      response = await makeRequest()
+    }
 
     if (!response.ok || typeof response.data === "undefined" || response.data === null) {
       const problem = getGeneralApiProblem(response)
@@ -87,11 +117,149 @@ export class Api {
   /**
    * Sets or clears the Authorization header for subsequent requests.
    */
-  setAuthToken(token?: string): void {
-    if (token) {
-      this.apisauce.setHeader("Authorization", `Bearer ${token}`)
+  setAuthTokens(
+    tokens: { accessToken?: string; refreshToken?: string | null },
+    options?: { overwriteRefresh?: boolean },
+  ): void {
+    this.applyTokens(tokens, { overwriteRefresh: options?.overwriteRefresh ?? false })
+  }
+
+  setAuthToken(token?: string, refreshToken?: string): void {
+    if (typeof token === "undefined" && typeof refreshToken === "undefined") {
+      this.setAuthTokens({ accessToken: undefined, refreshToken: null }, { overwriteRefresh: true })
+      return
+    }
+
+    const tokens: { accessToken?: string; refreshToken?: string | null } = { accessToken: token }
+
+    if (typeof refreshToken !== "undefined") {
+      tokens.refreshToken = refreshToken
+    }
+
+    this.setAuthTokens(tokens, { overwriteRefresh: typeof refreshToken !== "undefined" })
+  }
+
+  setTokenChangeHandler(
+    handler?: (tokens: { accessToken?: string; refreshToken?: string }) => void,
+  ): () => void {
+    this.tokensChangeHandler = handler
+    return () => {
+      if (this.tokensChangeHandler === handler) {
+        this.tokensChangeHandler = undefined
+      }
+    }
+  }
+
+  private applyTokens(
+    tokens: { accessToken?: string; refreshToken?: string | null },
+    options: { overwriteRefresh?: boolean; notify?: boolean } = {},
+  ): void {
+    const { overwriteRefresh = false, notify = false } = options
+    const { accessToken, refreshToken } = tokens
+
+    const normalizedAccessToken = accessToken ?? undefined
+    const shouldUpdateRefreshToken = overwriteRefresh || typeof refreshToken !== "undefined"
+    const normalizedRefreshToken = shouldUpdateRefreshToken
+      ? (refreshToken ?? undefined)
+      : this.refreshToken
+
+    const accessChanged = normalizedAccessToken !== this.accessToken
+    const refreshChanged = shouldUpdateRefreshToken && normalizedRefreshToken !== this.refreshToken
+
+    this.accessToken = normalizedAccessToken
+    if (shouldUpdateRefreshToken) {
+      this.refreshToken = normalizedRefreshToken
+    }
+
+    this.accessTokenExpiresAt = normalizedAccessToken
+      ? decodeJwtExpiration(normalizedAccessToken)
+      : undefined
+
+    if (this.accessToken) {
+      this.apisauce.setHeader("Authorization", `Bearer ${this.accessToken}`)
     } else {
       this.apisauce.deleteHeader("Authorization")
+    }
+
+    if ((accessChanged || refreshChanged) && notify && this.tokensChangeHandler) {
+      this.tokensChangeHandler({
+        accessToken: this.accessToken,
+        refreshToken: this.refreshToken,
+      })
+    }
+  }
+
+  private shouldRefreshToken(): boolean {
+    if (!this.accessToken || !this.refreshToken) return false
+    if (!this.accessTokenExpiresAt) return true
+
+    const timeUntilExpiry = this.accessTokenExpiresAt - Date.now()
+    return timeUntilExpiry <= TOKEN_REFRESH_THRESHOLD_MS
+  }
+
+  private async ensureValidAccessToken(): Promise<void> {
+    if (!this.accessToken) return
+
+    await this.refreshAccessToken()
+  }
+
+  private async refreshAccessToken(force = false): Promise<boolean> {
+    if (!this.refreshToken) return false
+
+    if (!force && !this.shouldRefreshToken()) {
+      return true
+    }
+
+    if (this.tokenRefreshPromise) {
+      return this.tokenRefreshPromise
+    }
+
+    this.tokenRefreshPromise = this.performTokenRefresh()
+
+    try {
+      return await this.tokenRefreshPromise
+    } finally {
+      this.tokenRefreshPromise = null
+    }
+  }
+
+  private async performTokenRefresh(): Promise<boolean> {
+    try {
+      const response = await this.apisauce.post<{ access: string; refresh?: string }>(
+        "token/refresh/",
+        {
+          refresh: this.refreshToken,
+        },
+      )
+
+      if (!response.ok || !response.data?.access) {
+        if (response.status === 400 || response.status === 401) {
+          this.applyTokens(
+            { accessToken: undefined, refreshToken: null },
+            { overwriteRefresh: true, notify: true },
+          )
+        }
+        return false
+      }
+
+      const { access, refresh } = response.data
+      const hasNewRefresh = typeof refresh === "string"
+
+      this.applyTokens(
+        {
+          accessToken: access,
+          refreshToken: hasNewRefresh ? refresh : undefined,
+        },
+        { notify: true, overwriteRefresh: hasNewRefresh },
+      )
+
+      return true
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Failed to refresh access token", error)
+      }
+
+      return false
     }
   }
 
@@ -159,7 +327,7 @@ export class Api {
   }
 
   async getIconesDisponiveis(): Promise<ApiResult<Icone[]>> {
-    return this.request<Icone[]> ({
+    return this.request<Icone[]>({
       method: "get",
       url: "icones/disponiveis",
     })

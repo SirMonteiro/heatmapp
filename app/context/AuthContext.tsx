@@ -16,11 +16,10 @@ import type { UserData } from "@/services/api/types"
 export type AuthContextType = {
   isAuthenticated: boolean
   authToken?: string
-  //authEmail?: string
+  refreshToken?: string
   authUsername?: string
   currentUser?: UserData | null
-  setAuthToken: (token?: string) => void
-  //setAuthEmail: (email: string) => void
+  setAuthTokens: (tokens: { accessToken?: string; refreshToken?: string | null }) => void
   setAuthUsername: (username: string) => void
   login: (username: string, password: string) => Promise<boolean>
   fetchCurrentUser: () => Promise<void>
@@ -33,12 +32,43 @@ export const AuthContext = createContext<AuthContextType | null>(null)
 export interface AuthProviderProps {}
 
 export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ children }) => {
-  const [authToken, setAuthToken] = useMMKVString("AuthProvider.authToken")
-  //const [authEmail, setAuthEmail] = useMMKVString("AuthProvider.authEmail")
+  const [storedAccessToken, setStoredAccessToken] = useMMKVString("AuthProvider.authToken")
+  const [storedRefreshToken, setStoredRefreshToken] = useMMKVString("AuthProvider.refreshToken")
   const [authUsernameStorage, setAuthUsername] = useMMKVString("AuthProvider.authUsername")
   const authUsername = authUsernameStorage ?? ""
 
+  const authToken = storedAccessToken ?? undefined
+  const refreshToken = storedRefreshToken ?? undefined
+
   const [currentUser, setCurrentUser] = useState<UserData | null>(null)
+
+  const setAuthTokens = useCallback(
+    ({
+      accessToken: nextAccessToken,
+      refreshToken: nextRefreshToken,
+    }: {
+      accessToken?: string
+      refreshToken?: string | null
+    }) => {
+      setStoredAccessToken(nextAccessToken ?? undefined)
+
+      if (typeof nextRefreshToken !== "undefined") {
+        setStoredRefreshToken(nextRefreshToken ?? undefined)
+      }
+
+      api.setAuthTokens(
+        {
+          accessToken: nextAccessToken ?? undefined,
+          refreshToken:
+            typeof nextRefreshToken !== "undefined"
+              ? (nextRefreshToken ?? undefined)
+              : refreshToken,
+        },
+        { overwriteRefresh: typeof nextRefreshToken !== "undefined" },
+      )
+    },
+    [refreshToken, setStoredAccessToken, setStoredRefreshToken],
+  )
 
   const login = useCallback(
     async (username: string, password: string): Promise<boolean> => {
@@ -53,8 +83,10 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
         }
 
         // Armazena token e username localmente
-        setAuthToken(response.data.access)
-        api.setAuthToken(response.data.access)
+        setAuthTokens({
+          accessToken: response.data.access,
+          refreshToken: response.data.refresh ?? null,
+        })
         setAuthUsername(username)
 
         return true
@@ -63,7 +95,7 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
         return false
       }
     },
-    [setAuthToken, setAuthUsername],
+    [setAuthTokens, setAuthUsername],
   )
 
   const fetchCurrentUser = useCallback(async () => {
@@ -83,17 +115,36 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
   }, [authToken])
   // Carrega current user automaticamente quando loga
   useEffect(() => {
-    api.setAuthToken(authToken)
+    api.setAuthTokens(
+      {
+        accessToken: authToken,
+        refreshToken,
+      },
+      { overwriteRefresh: true },
+    )
+
     if (authToken) fetchCurrentUser()
-  }, [authToken, fetchCurrentUser])
+  }, [authToken, refreshToken, fetchCurrentUser])
+
+  useEffect(() => {
+    return api.setTokenChangeHandler(
+      ({ accessToken: nextAccessToken, refreshToken: nextRefreshToken }) => {
+        if (typeof nextAccessToken !== "undefined" && nextAccessToken !== authToken) {
+          setStoredAccessToken(nextAccessToken ?? undefined)
+        }
+
+        if (typeof nextRefreshToken !== "undefined" && nextRefreshToken !== refreshToken) {
+          setStoredRefreshToken(nextRefreshToken ?? undefined)
+        }
+      },
+    )
+  }, [authToken, refreshToken, setStoredAccessToken, setStoredRefreshToken])
 
   const logout = useCallback(() => {
-    setAuthToken(undefined)
-    //setAuthEmail("")
+    setAuthTokens({ accessToken: undefined, refreshToken: null })
     setAuthUsername("")
-    api.setAuthToken(undefined)
     setCurrentUser(null)
-  }, [setAuthUsername, setAuthToken])
+  }, [setAuthTokens, setAuthUsername])
 
   const validationError = useMemo(() => {
     //if (!authEmail || authEmail.length === 0) return "can't be blank"
@@ -109,10 +160,11 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
   const value = {
     isAuthenticated: !!authToken,
     authToken,
+    refreshToken,
     authUsername,
     currentUser,
     setAuthUsername,
-    setAuthToken,
+    setAuthTokens,
     login,
     fetchCurrentUser,
     logout,
