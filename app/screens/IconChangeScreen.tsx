@@ -164,6 +164,7 @@ export function IconChangeScreen() {
             renderItem={renderTile}
             keyExtractor={(it) => String(it.id)}
             numColumns={3}
+            extraData={selectedId} 
             contentContainerStyle={styles.grid}
           />
 
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     margin: 8,
     borderRadius: 12,
-    overflow: "hidden",
+    // overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f2f2f2",
