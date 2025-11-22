@@ -26,6 +26,7 @@ import { api } from "@/services/api"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 import { IMAGENS_ICONES, fallbackImage } from "@/utils/IconesImagens"
+import RecompensaCard from "@/components/RecompensaCard"
 
 // ============================================================================
 // Types
@@ -240,6 +241,11 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [selectedArea, setSelectedArea] = useState<AreaVerdeMarker | null>(null)
+
+  const [recompensaKey, setRecompensaKey] = useState<string | null>(null)
+  const [recompensaVisivel, setRecompensaVisivel] = useState(false)
+  const [recompensaDados, setRecompensaDados] = useState<{ aumentou_streak: boolean; moedas_ganhas: number } | null>(null)
+  const [recompensaIconeId, setRecompensaIconeId] = useState<number | null>(null)
 
   const heatmapRadius = useMemo(
     () => getHeatmapRadius(region.latitudeDelta),
@@ -511,16 +517,56 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
   /**
    * Handle successful audio submission
    */
-  const handleAudioSubmitSuccess = (): void => {
-    // Refresh heatmap data after successful submission
-    if (activeFilter === "poluicao") {
-      fetchHeatmapData()
+const handleAudioSubmitSuccess = async (
+  recompensa: { aumentou_streak: boolean; moedas_ganhas: number } | null,
+  idIcone?: number | null,
+): Promise<void> => {
+  if (recompensa) {
+    // tenta obter current_user atualizado (preferível ao idIcone vindo do modal)
+    try {
+      const meRes = await api.getCurrentUser()
+      if (meRes.kind === "ok") {
+        setRecompensaIconeId(meRes.data.id_icone ?? (idIcone ?? null))
+      } else {
+        setRecompensaIconeId(idIcone ?? null)
+      }
+    } catch (e) {
+      setRecompensaIconeId(idIcone ?? null)
     }
+
+    setRecompensaDados(recompensa)
+    // cria chave para forçar remount do card e garantir reload de imagem
+    setRecompensaKey(Date.now().toString())
+    setRecompensaVisivel(true)
   }
 
-  const handleAreaVerdeSubmitSuccess = (): void => {
-    fetchAreasVerdesData()
+  if (activeFilter === "poluicao") {
+    fetchHeatmapData()
   }
+}
+
+const handleAreaVerdeSubmitSuccess = async (
+  recompensa: { aumentou_streak: boolean; moedas_ganhas: number } | null,
+  idIcone?: number | null,
+): Promise<void> => {
+  if (recompensa) {
+    try {
+      const meRes = await api.getCurrentUser()
+      if (meRes.kind === "ok") {
+        setRecompensaIconeId(meRes.data.id_icone ?? (idIcone ?? null))
+      } else {
+        setRecompensaIconeId(idIcone ?? null)
+      }
+    } catch (e) {
+      setRecompensaIconeId(idIcone ?? null)
+    }
+
+    setRecompensaDados(recompensa)
+    setRecompensaKey(Date.now().toString())
+    setRecompensaVisivel(true)
+  }
+  fetchAreasVerdesData()
+}
 
   const handleAreaDetailsClose = (): void => {
     setSelectedArea(null)
@@ -700,6 +746,39 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         area={selectedArea}
         onClose={handleAreaDetailsClose}
       />
+
+      { /* RecompensaCard overlay (render no topo do componente pai) */ }
+      {recompensaVisivel && recompensaDados && (
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingHorizontal: 16,
+        }}
+        pointerEvents="box-none"
+      >
+        <View style={{ width: "100%", maxWidth: 420 }}>
+          <RecompensaCard
+            key={recompensaKey ?? String(recompensaIconeId ?? "")}
+            recompensa={recompensaDados}
+            idIcone={recompensaIconeId}
+            onClose={() => {
+              setRecompensaVisivel(false)
+              setRecompensaDados(null)
+              setRecompensaIconeId(null)
+              setRecompensaKey(null)
+            }}
+          />
+        </View>
+      </View>
+    )}
+
     </Screen>
   )
 }

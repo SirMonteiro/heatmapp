@@ -97,11 +97,18 @@ export interface AudioSubmissionRequest {
 }
 
 export interface AudioSubmissionResponse {
-  id: number
-  latitude: number
-  longitude: number
-  decibel: number
-  created_at: string
+  post: {
+    id: number
+    user: number
+    local_latitude: number
+    local_longitude: number
+    local_data: string
+    decibeis: number
+  }
+  recompensa: {
+    aumentou_streak: boolean
+    moedas_ganhas: number
+  }
 }
 
 export interface AreaVerdeSubmissionRequest {
@@ -118,15 +125,21 @@ export interface AreaVerdeSubmissionRequest {
 }
 
 export interface AreaVerdeSubmissionResponse {
-  id: number
-  local_latitude: number
-  local_longitude: number
-  titulo: string
-  modo_acesso: string
-  user: number
-  descricao?: string
-  imagem_url?: string
-  created_at: string
+  post: {
+    id: number
+    local_latitude: number
+    local_longitude: number
+    titulo: string
+    modo_acesso: string
+    user: number
+    descricao?: string
+    imagem_url?: string
+    created_at: string
+  }
+  recompensa: {
+    aumentou_streak: boolean
+    moedas_ganhas: number
+  }
 }
 
 export interface AreaVerdePost {

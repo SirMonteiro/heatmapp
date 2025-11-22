@@ -23,7 +23,7 @@ import { UserData } from "@/services/api/types"
 interface PoluicaoSonoraModalProps {
   visible: boolean
   onClose: () => void
-  onSuccess?: () => void
+  onSuccess?: (recompensa: { aumentou_streak: boolean; moedas_ganhas: number } | null, idIcone?: number | null) => void
 }
 
 const RECORDING_DURATION_MS = 10000 // 10 seconds
@@ -201,8 +201,8 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
       })
 
       if (response.kind === "ok") {
-        Alert.alert("Sucesso", "Dados enviados com sucesso!")
-        onSuccess?.()
+        const recompensa = (response.data as any)?.recompensa ?? null        
+        onSuccess?.(recompensa, user?.id_icone)
         handleClose()
       } else {
         Alert.alert("Erro", "Não foi possível enviar os dados. Tente novamente.")
@@ -260,7 +260,7 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
           <View style={themed($modalBody)}>
             {/* Instructions */}
             <Text style={themed($instructionText)}>
-              Envie um áudio curto de 5-10s, captando os ruídos ao seu redor!
+              Envie um áudio curto de 10s, captando os ruídos ao seu redor!
             </Text>
 
             <Text style={themed($instructionSubtext)}>

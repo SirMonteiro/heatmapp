@@ -30,7 +30,7 @@ import { UserData } from "@/services/api/types"
 interface AreasVerdesModalProps {
   visible: boolean
   onClose: () => void
-  onSuccess?: () => void
+  onSuccess?: (recompensa: { aumentou_streak: boolean; moedas_ganhas: number } | null, idIcone?: number | null) => void
 }
 
 type SelectedImage = {
@@ -218,8 +218,8 @@ export const AreasVerdesModal: FC<AreasVerdesModalProps> = ({ visible, onClose, 
       })
 
       if (response.kind === "ok") {
-        Alert.alert("Sucesso", "Área verde enviada com sucesso!")
-        onSuccess?.()
+        const recompensa = (response.data as any)?.recompensa ?? null      
+        onSuccess?.(recompensa, user?.id_icone)
         handleClose()
       } else {
         Alert.alert("Erro", "Não foi possível enviar os dados. Tente novamente.")

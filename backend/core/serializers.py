@@ -39,11 +39,8 @@ class PostSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        resultado = user.aplicar_recompensa()
+        user = validated_data.pop('user', None) or self.context["request"].user
         post = Post.objects.create(user=user, **validated_data)
-        post.moedas_ganhas = resultado["moedas_ganhas"]
-        post.aumentou_streak = resultado["aumentou_streak"]
         return post
 
 
