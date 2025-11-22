@@ -157,6 +157,16 @@ STATIC_URL = 'static/'
 
 STATIC_ROOT = BASE_DIR / "staticfiles_build" / "static"
 
+
+# Supabase configuration for Área Verde uploads
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://shdpkrdgsvhzpdlzrogv.supabase.co")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "sb_secret_pxI5KZvqXGAnjP5aL75Wyw_51WB54Si")
+SUPABASE_AREAS_BUCKET = os.environ.get("SUPABASE_AREAS_BUCKET", "areasVerdesBucket")
+SUPABASE_PUBLIC_URL = os.environ.get(
+    "SUPABASE_PUBLIC_URL",
+    f"{SUPABASE_URL.rstrip('/')}" + "/storage/v1/object/public" if SUPABASE_URL else "",
+)
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

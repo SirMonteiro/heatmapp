@@ -105,14 +105,16 @@ export interface AudioSubmissionResponse {
 }
 
 export interface AreaVerdeSubmissionRequest {
+  user: number | undefined
   latitude: number
   longitude: number
   titulo: string
   modoAcesso: string
   descricao?: string
+  imageUri: string
   imageBase64: string
-  imageContentType?: string
-  imageFileName?: string
+  imageContentType: string
+  imageFileName: string
 }
 
 export interface AreaVerdeSubmissionResponse {

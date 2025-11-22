@@ -20,7 +20,6 @@ import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 import { UserData } from "@/services/api/types"
 
-
 interface PoluicaoSonoraModalProps {
   visible: boolean
   onClose: () => void
@@ -47,22 +46,21 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
 
   const [user, setUser] = useState<UserData | null>(null)
   const [loadingUser, setLoadingUser] = useState<boolean>(true)
-  
+
   const loadUser = useCallback(async () => {
-        setLoadingUser(true)
-        const res = await api.getCurrentUser()
-        if (res.kind === "ok") setUser(res.data)
-        else {
-          console.warn("Conta: não foi possível carregar current_user", res)
-          setUser(null)
-        }
-        setLoadingUser(false)
-      }, [])
-  
-      useEffect(() => {
-      loadUser()
-    }, [loadUser])
-  
+    setLoadingUser(true)
+    const res = await api.getCurrentUser()
+    if (res.kind === "ok") setUser(res.data)
+    else {
+      console.warn("Conta: não foi possível carregar current_user", res)
+      setUser(null)
+    }
+    setLoadingUser(false)
+  }, [])
+
+  useEffect(() => {
+    loadUser()
+  }, [loadUser])
 
   const clearRecordingTimers = (): void => {
     if (recordingTimerRef.current) {

@@ -2,11 +2,18 @@ from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.decorators import action
 from django.db import transaction, IntegrityError
-from .models import User, Icone, IconeComprado, Post, PostRuido
-from .serializers import UserSerializer, IconeSerializer, IconeCompradoSerializer, PostSerializer, PostRuidoSerializer
+from .models import User, Icone, IconeComprado, Post, PostRuido, PostAreaVerde
+from .serializers import (
+    UserSerializer,
+    IconeSerializer,
+    IconeCompradoSerializer,
+    PostSerializer,
+    PostRuidoSerializer,
+    PostAreaVerdeSerializer,
+)
 # Create your views here.
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -31,7 +38,7 @@ class IconeViewSet(viewsets.ModelViewSet):
         qs = Icone.objects.exclude(id__in=ids_comprados)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
-    
+
     # Action de compra: vai criar o endpoint POST  /api/icones/pk/comprar
     @action (detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def comprar(self, request, pk=None):
@@ -48,12 +55,12 @@ class IconeViewSet(viewsets.ModelViewSet):
 
                 if user_locked.moedas < icone.preco:
                     return Response({"detail": "Saldo insuficiente!"}, status=400)
-                
+
                 user_locked.moedas -= icone.preco
                 user_locked.save()
 
                 IconeComprado.objects.create(user=user_locked, icone=icone)
-        
+
         except IntegrityError:
             return Response({"detail": "Erro ao processar a compra! Tente novamente."}, status=400)
 
@@ -69,7 +76,7 @@ class IconeCompradoViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(icones, many=True)
         return Response(serializer.data)
 
-    
+
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
@@ -99,6 +106,15 @@ class PostRuidoViewSet(viewsets.ModelViewSet):
 
         response_data = self.get_serializer(post).data
         return Response({"post": response_data, "recompensa": resultado_recompensa}, status=201)
+
+class PostAreaVerdeViewSet(viewsets.ModelViewSet):
+    queryset = PostAreaVerde.objects.all()
+    serializer_class = PostAreaVerdeSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]  # só usuários autenticados

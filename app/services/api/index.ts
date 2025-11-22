@@ -5,6 +5,8 @@
  * See the [Backend API Integration](https://docs.infinite.red/ignite-cli/boilerplate/app/services/#backend-api-integration)
  * documentation for more details.
  */
+import { Image } from "react-native"
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator"
 import { ApiResponse, ApisauceInstance, create } from "apisauce"
 import { jwtDecode, type JwtPayload } from "jwt-decode"
 
@@ -49,6 +51,107 @@ type ApiRequestConfig = {
 type ApiResult<T> = { kind: "ok"; data: T } | GeneralApiProblem
 
 const TOKEN_REFRESH_THRESHOLD_MS = 60_000
+const AREA_VERDE_MAX_WIDTH = 1280
+const AREA_VERDE_MAX_HEIGHT = 720
+const AREA_VERDE_JPEG_QUALITY = 0.75
+
+type OptimizedAreaVerdeImage = {
+  base64: string
+  contentType: string
+  fileName: string
+}
+
+const stripDataUrlPrefix = (value: string): string => {
+  if (!value.includes(",")) return value
+  const [, data] = value.split(",", 2)
+  return data
+}
+
+const ensureJpegFileName = (fileName?: string): string => {
+  const fallback = `area-verde-${Date.now()}.jpg`
+  if (!fileName?.trim()) return fallback
+
+  const normalized = fileName.trim()
+  const lower = normalized.toLowerCase()
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return normalized
+  return `${normalized}.jpg`
+}
+
+const getImageDimensions = (uri: string): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      (error) => reject(error ?? new Error("Failed to read image size")),
+    )
+  })
+
+const computeTargetDimensions = (width: number, height: number) => {
+  if (width <= AREA_VERDE_MAX_WIDTH && height <= AREA_VERDE_MAX_HEIGHT) {
+    return { width, height }
+  }
+
+  const widthRatio = AREA_VERDE_MAX_WIDTH / width
+  const heightRatio = AREA_VERDE_MAX_HEIGHT / height
+  const scale = Math.min(widthRatio, heightRatio)
+
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  }
+}
+
+const optimizeAreaVerdeImage = async (
+  payload: AreaVerdeSubmissionRequest,
+): Promise<OptimizedAreaVerdeImage> => {
+  const fallback = {
+    base64: stripDataUrlPrefix(payload.imageBase64),
+    contentType: payload.imageContentType || "image/jpeg",
+    fileName: ensureJpegFileName(payload.imageFileName),
+  }
+
+  if (!payload.imageUri) return fallback
+
+  try {
+    const { width, height } = await getImageDimensions(payload.imageUri)
+    const { width: targetWidth, height: targetHeight } = computeTargetDimensions(width, height)
+
+    const result = await manipulateAsync(
+      payload.imageUri,
+      [
+        {
+          resize: {
+            width: targetWidth,
+            height: targetHeight,
+          },
+        },
+      ],
+      {
+        compress: AREA_VERDE_JPEG_QUALITY,
+        format: SaveFormat.JPEG,
+        base64: true,
+      },
+    )
+
+    if (!result.base64) {
+      return fallback
+    }
+
+    return {
+      base64: result.base64,
+      contentType: "image/jpeg",
+      fileName: ensureJpegFileName(payload.imageFileName),
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(
+        "Failed to optimize Área Verde image; falling back to original image data.",
+        error,
+      )
+    }
+    return fallback
+  }
+}
 
 const decodeJwtExpiration = (token: string): number | undefined => {
   try {
@@ -369,6 +472,7 @@ export class Api {
     payload: AreaVerdeSubmissionRequest,
   ): Promise<ApiResult<AreaVerdeSubmissionResponse>> {
     const data: Record<string, unknown> = {
+      user: payload.user,
       titulo: payload.titulo,
       modo_acesso: payload.modoAcesso,
       local_latitude: payload.latitude,
@@ -380,10 +484,13 @@ export class Api {
     }
 
     if (payload.imageBase64) {
-      data.imagem_base64 = payload.imageBase64
-      if (payload.imageContentType) data.imagem_content_type = payload.imageContentType
-      if (payload.imageFileName) data.imagem_nome = payload.imageFileName
+      const optimizedImage = await optimizeAreaVerdeImage(payload)
+      data.imagem_base64 = optimizedImage.base64
+      data.imagem_content_type = optimizedImage.contentType
+      data.imagem_nome = optimizedImage.fileName
     }
+
+    // console.log(data)
 
     return this.request<AreaVerdeSubmissionResponse>({
       method: "post",

@@ -25,6 +25,8 @@ import { api } from "@/services/api"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
 
+import { UserData } from "@/services/api/types"
+
 interface AreasVerdesModalProps {
   visible: boolean
   onClose: () => void
@@ -34,8 +36,8 @@ interface AreasVerdesModalProps {
 type SelectedImage = {
   uri: string
   base64: string
-  fileName?: string | null
-  mimeType?: string | null
+  fileName: string
+  mimeType: string
 }
 
 export const AreasVerdesModal: FC<AreasVerdesModalProps> = ({ visible, onClose, onSuccess }) => {
@@ -47,6 +49,24 @@ export const AreasVerdesModal: FC<AreasVerdesModalProps> = ({ visible, onClose, 
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPickingImage, setIsPickingImage] = useState(false)
+
+  const [user, setUser] = useState<UserData | null>(null)
+  const [loadingUser, setLoadingUser] = useState<boolean>(true)
+
+  const loadUser = useCallback(async () => {
+    setLoadingUser(true)
+    const res = await api.getCurrentUser()
+    if (res.kind === "ok") setUser(res.data)
+    else {
+      console.warn("Conta: não foi possível carregar current_user", res)
+      setUser(null)
+    }
+    setLoadingUser(false)
+  }, [])
+
+  useEffect(() => {
+    loadUser()
+  }, [loadUser])
 
   const resetForm = useCallback(() => {
     setTitulo("")
@@ -185,14 +205,16 @@ export const AreasVerdesModal: FC<AreasVerdesModalProps> = ({ visible, onClose, 
       })
 
       const response = await api.submitAreaVerdeData({
+        user: user?.id,
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         titulo: tituloTrimmed,
         modoAcesso: modoAcessoTrimmed,
         descricao: descricaoTrimmed.length > 0 ? descricaoTrimmed : undefined,
         imageBase64: selectedImage.base64,
-        imageContentType: selectedImage.mimeType ?? undefined,
-        imageFileName: selectedImage.fileName ?? undefined,
+        imageContentType: selectedImage.mimeType,
+        imageUri: selectedImage.uri,
+        imageFileName: selectedImage.fileName,
       })
 
       if (response.kind === "ok") {
