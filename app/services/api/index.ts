@@ -417,6 +417,13 @@ export class Api {
     })
   }
 
+  async getUserProfile(userId: number): Promise<ApiResult<UserData>> {
+    return this.request<UserData>({
+      method: "get",
+      url: `usuarios/${userId}/`,
+    })
+  }
+
   async registerUser(payload: RegisterRequest): Promise<ApiResult<UserData>> {
     return this.request<UserData>({
       method: "post",

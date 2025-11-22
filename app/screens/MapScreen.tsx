@@ -1,5 +1,13 @@
 import { FC, useState, useEffect, useRef, useMemo, useCallback } from "react"
-import { Pressable, TextStyle, View, ViewStyle, Alert, TouchableOpacity } from "react-native"
+import {
+  Pressable,
+  TextStyle,
+  View,
+  ViewStyle,
+  Alert,
+  TouchableOpacity,
+  ImageSourcePropType,
+} from "react-native"
 import * as Location from "expo-location"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import MapView, { PROVIDER_GOOGLE, Heatmap, Marker } from "react-native-maps"
@@ -17,6 +25,7 @@ import type { DemoTabScreenProps } from "@/navigators/DemoNavigator"
 import { api } from "@/services/api"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
+import { IMAGENS_ICONES, fallbackImage } from "@/utils/IconesImagens"
 
 // ============================================================================
 // Types
@@ -39,6 +48,15 @@ interface AreaVerdeMarker {
   modoAcesso: string
   descricao?: string
   imagemUrl?: string
+  userId?: number
+  author?: AreaVerdeAuthor
+}
+
+interface AreaVerdeAuthor {
+  id: number
+  displayName: string
+  username?: string
+  avatar: ImageSourcePropType
 }
 
 interface NominatimSearchResult {
@@ -66,9 +84,9 @@ const LOCATION_ANIMATION_DURATION_MS = 1000
 const ZOOM_FACTOR_BASE = 0.0922
 const MIN_MAP_DELTA = 0.005
 const MAX_MAP_DELTA = 1.5
-const HEATMAP_RADIUS_BASE = 40
+const HEATMAP_RADIUS_BASE = 30
 const MIN_HEATMAP_RADIUS = 20
-const MAX_HEATMAP_RADIUS = 80
+const MAX_HEATMAP_RADIUS = 50
 const HEATMAP_OPACITY = 0.7
 
 const HEATMAP_COLORS = {
@@ -149,6 +167,8 @@ const normalizeAreaVerdePost = (rawPost: unknown): AreaVerdeMarker | null => {
   const modoAcesso = typeof post.modo_acesso === "string" ? post.modo_acesso.trim() : undefined
   const descricao = typeof post.descricao === "string" ? post.descricao.trim() : undefined
   const imagemUrl = typeof post.imagem_url === "string" ? post.imagem_url : undefined
+  const userIdValue = Number(post.user ?? post.user_id)
+  const userId = Number.isFinite(userIdValue) ? userIdValue : undefined
 
   if (!Number.isFinite(id) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null
@@ -164,6 +184,7 @@ const normalizeAreaVerdePost = (rawPost: unknown): AreaVerdeMarker | null => {
     modoAcesso,
     descricao: descricao && descricao.length > 0 ? descricao : undefined,
     imagemUrl,
+    userId,
   }
 }
 
@@ -193,6 +214,13 @@ const getHeatmapRadius = (latitudeDelta: number): number => {
   return Math.min(MAX_HEATMAP_RADIUS, Math.max(MIN_HEATMAP_RADIUS, Math.round(radius)))
 }
 
+const resolveAvatarSource = (iconeId?: number | null): ImageSourcePropType => {
+  if (typeof iconeId === "number" && iconeId > 0) {
+    return IMAGENS_ICONES[iconeId] ?? fallbackImage
+  }
+  return fallbackImage
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -200,6 +228,7 @@ const getHeatmapRadius = (latitudeDelta: number): number => {
 export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_props) {
   const { themed, theme } = useAppTheme()
   const mapRef = useRef<MapView>(null)
+  const userCacheRef = useRef<Map<number, AreaVerdeAuthor>>(new Map())
 
   // State management
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -264,6 +293,56 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
     }
   }, [])
 
+  const hydrateAreaVerdeAuthors = useCallback(
+    async (posts: AreaVerdeMarker[]): Promise<AreaVerdeMarker[]> => {
+      const missingIds = Array.from(
+        new Set(
+          posts
+            .map((post) => post.userId)
+            .filter(
+              (id): id is number =>
+                typeof id === "number" && Number.isFinite(id) && !userCacheRef.current.has(id),
+            ),
+        ),
+      )
+
+      if (missingIds.length > 0) {
+        await Promise.all(
+          missingIds.map(async (userId) => {
+            try {
+              const result = await api.getUserProfile(userId)
+              if (result.kind === "ok") {
+                const user = result.data
+                const displayName =
+                  `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username
+                userCacheRef.current.set(userId, {
+                  id: userId,
+                  username: user.username,
+                  displayName,
+                  avatar: resolveAvatarSource(user.id_icone),
+                })
+              } else {
+                console.warn("Falha ao carregar usuário da área verde", {
+                  userId,
+                  kind: result.kind,
+                })
+              }
+            } catch (error) {
+              console.error("Erro ao carregar usuário da área verde", { userId, error })
+            }
+          }),
+        )
+      }
+
+      return posts.map((post) => {
+        if (!post.userId) return post
+        const author = userCacheRef.current.get(post.userId)
+        return author ? { ...post, author } : post
+      })
+    },
+    [],
+  )
+
   const fetchAreasVerdesData = useCallback(async (): Promise<void> => {
     try {
       const response = await api.getAreasVerdes()
@@ -272,11 +351,12 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         const normalized = response.data
           .map(normalizeAreaVerdePost)
           .filter((post): post is AreaVerdeMarker => post !== null)
+        const enriched = await hydrateAreaVerdeAuthors(normalized)
 
-        setAreasVerdesData(normalized)
+        setAreasVerdesData(enriched)
         setSelectedArea((current) => {
           if (!current) return null
-          return normalized.find((post) => post.id === current.id) ?? null
+          return enriched.find((post) => post.id === current.id) ?? null
         })
       } else {
         console.error("Failed to fetch áreas verdes data:", response.kind)
@@ -288,7 +368,7 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
       setAreasVerdesData([])
       setSelectedArea(null)
     }
-  }, [])
+  }, [hydrateAreaVerdeAuthors])
 
   // Fetch map overlays when filter changes
   useEffect(() => {

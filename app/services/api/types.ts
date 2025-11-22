@@ -123,6 +123,7 @@ export interface AreaVerdeSubmissionResponse {
   local_longitude: number
   titulo: string
   modo_acesso: string
+  user: number
   descricao?: string
   imagem_url?: string
   created_at: string
@@ -134,6 +135,7 @@ export interface AreaVerdePost {
   local_longitude: number
   titulo: string
   modo_acesso: string
+  user: number
   descricao?: string
   imagem_url?: string
 }

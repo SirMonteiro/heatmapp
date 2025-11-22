@@ -2,6 +2,7 @@ import { FC } from "react"
 import {
   Image,
   ImageStyle,
+  ImageSourcePropType,
   Modal,
   Pressable,
   ScrollView,
@@ -23,6 +24,13 @@ export interface AreaVerdeDetails {
   modoAcesso: string
   descricao?: string
   imagemUrl?: string
+  userId?: number
+  author?: {
+    id: number
+    displayName: string
+    username?: string
+    avatar: ImageSourcePropType
+  }
 }
 
 interface AreaVerdeDetailsModalProps {
@@ -63,6 +71,26 @@ export const AreaVerdeDetailsModal: FC<AreaVerdeDetailsModalProps> = ({
           </View>
 
           <ScrollView contentContainerStyle={themed($scrollContent)}>
+            {area.author ? (
+              <View style={themed($authorContainer)}>
+                <Image source={area.author.avatar} style={themed($authorAvatar)} />
+                <View style={themed($authorInfo)}>
+                  <Text
+                    style={themed($authorName)}
+                    text={area.author.displayName}
+                    numberOfLines={1}
+                  />
+                  {area.author.username ? (
+                    <Text
+                      style={themed($authorUsername)}
+                      text={`@${area.author.username}`}
+                      numberOfLines={1}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+
             {area.imagemUrl ? (
               <Image source={{ uri: area.imagemUrl }} style={themed($image)} resizeMode="cover" />
             ) : (
@@ -136,6 +164,39 @@ const $closeButton: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
 const $scrollContent: ThemedStyle<ViewStyle> = ({ spacing }) => ({
   paddingHorizontal: spacing.lg,
   paddingBottom: spacing.xl,
+})
+
+const $authorContainer: ThemedStyle<ViewStyle> = ({ spacing, colors }) => ({
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: spacing.md,
+  padding: spacing.sm,
+  borderRadius: 16,
+  backgroundColor: colors.palette.neutral200,
+})
+
+const $authorAvatar: ThemedStyle<ImageStyle> = ({ spacing }) => ({
+  width: 56,
+  height: 56,
+  borderRadius: 28,
+  marginRight: spacing.sm,
+})
+
+const $authorInfo: ThemedStyle<ViewStyle> = () => ({
+  flex: 1,
+})
+
+const $authorName: ThemedStyle<TextStyle> = ({ typography, colors }) => ({
+  fontSize: 16,
+  fontFamily: typography.primary.semiBold,
+  color: colors.text,
+})
+
+const $authorUsername: ThemedStyle<TextStyle> = ({ typography, colors }) => ({
+  marginTop: 2,
+  fontSize: 14,
+  fontFamily: typography.primary.normal,
+  color: colors.palette.neutral600,
 })
 
 const $image: ThemedStyle<ImageStyle> = ({ spacing }) => ({
