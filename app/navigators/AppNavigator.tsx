@@ -12,7 +12,6 @@ import Config from "@/config"
 import { useAuth } from "@/context/AuthContext"
 import { ErrorBoundary } from "@/screens/ErrorScreen/ErrorBoundary"
 import { LoginScreen } from "@/screens/LoginScreen"
-import { WelcomeScreen } from "@/screens/WelcomeScreen"
 import { RegisterScreen } from "@/screens/RegisterScreen"
 import { useAppTheme } from "@/theme/context"
 
@@ -35,6 +34,7 @@ export type AppStackParamList = {
   Demo: NavigatorScreenParams<DemoTabParamList>
   // 🔥 Your screens go here
   // IGNITE_GENERATOR_ANCHOR_APP_STACK_PARAM_LIST
+  Mapa: undefined
 }
 
 /**
@@ -67,11 +67,11 @@ const AppStack = () => {
           backgroundColor: colors.background,
         },
       }}
-      initialRouteName={isAuthenticated ? "Welcome" : "Login"}
+      initialRouteName={isAuthenticated ? "Demo" : "Login"}
     >
       {isAuthenticated ? (
         <>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          {/* <Stack.Screen name="Welcome" component={WelcomeScreen} /> */}
 
           <Stack.Screen name="Demo" component={DemoNavigator} />
         </>
