@@ -2,6 +2,7 @@
 node = "22.20.0"
 java = "openjdk-17"
 "npm:eas-cli" = "latest"
+"npm:vercel" = "latest"
 
 [env]
 PATH = "$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools"
@@ -100,3 +101,7 @@ run = "npm run build:android:preview"
 [tasks.build-android-prod]
 description = "Creates a local build for Android (production)"
 run = "npm run build:android:prod"
+
+[tasks.deploy]
+description = "Deploys the backend to Vercel (production)"
+run = "vercel deploy backend --prod"
