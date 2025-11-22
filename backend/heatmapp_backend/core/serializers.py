@@ -33,7 +33,16 @@ class IconeCompradoSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
-        fields = ['id', 'user', 'local_latitude', 'local_longitude', 'local_data']
+        fields = "__all__"
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        resultado = user.aplicar_recompensa()
+        print("RESULTADO DA RECOMPENSA:", resultado)
+        post = Post.objects.create(user=user, **validated_data)
+        post.moedas_ganhas = resultado["moedas_ganhas"]
+        post.aumentou_streak = resultado["aumentou_streak"]
+        return post
 
 
 class PostRuidoSerializer(serializers.ModelSerializer):

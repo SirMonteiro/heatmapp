@@ -75,11 +75,30 @@ class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
 
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        resultado_recompensa = user.aplicar_recompensa()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        post = serializer.save(user=user)
+
+        response_data = self.get_serializer(post).data
+        return Response({"post": response_data, "recompensa": resultado_recompensa}, status=201)
+
 
 class PostRuidoViewSet(viewsets.ModelViewSet):
     queryset = PostRuido.objects.all()
     serializer_class = PostRuidoSerializer
 
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        resultado_recompensa = user.aplicar_recompensa()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        post = serializer.save(user=user)
+
+        response_data = self.get_serializer(post).data
+        return Response({"post": response_data, "recompensa": resultado_recompensa}, status=201)
 
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]  # só usuários autenticados
