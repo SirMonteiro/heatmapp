@@ -126,6 +126,16 @@ export interface AreaVerdeSubmissionResponse {
   created_at: string
 }
 
+export interface AreaVerdePost {
+  id: number
+  local_latitude: number
+  local_longitude: number
+  titulo: string
+  modo_acesso: string
+  descricao?: string
+  imagem_url?: string
+}
+
 export interface HeatmapPoint {
   latitude: number
   longitude: number

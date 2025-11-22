@@ -1,11 +1,12 @@
-import { FC, useState, useEffect, useRef, useMemo } from "react"
+import { FC, useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Pressable, TextStyle, View, ViewStyle, Alert, TouchableOpacity } from "react-native"
 import * as Location from "expo-location"
 import Ionicons from "@expo/vector-icons/Ionicons"
-import MapView, { PROVIDER_GOOGLE, Heatmap } from "react-native-maps"
+import MapView, { PROVIDER_GOOGLE, Heatmap, Marker } from "react-native-maps"
 import type { Region } from "react-native-maps"
 
 import { AreasVerdesModal } from "@/components/AreasVerdesModal"
+import { AreaVerdeDetailsModal } from "@/components/AreaVerdeDetailsModal"
 import { Button } from "@/components/Button"
 import { Icon } from "@/components/Icon"
 import { PoluicaoSonoraModal } from "@/components/PoluicaoSonoraModal"
@@ -28,6 +29,16 @@ interface HeatmapPoint {
   latitude: number
   longitude: number
   weight: number
+}
+
+interface AreaVerdeMarker {
+  id: number
+  latitude: number
+  longitude: number
+  titulo: string
+  modoAcesso: string
+  descricao?: string
+  imagemUrl?: string
 }
 
 interface NominatimSearchResult {
@@ -127,6 +138,35 @@ const normalizeHeatmapPoint = (rawPoint: unknown): HeatmapPoint | null => {
   }
 }
 
+const normalizeAreaVerdePost = (rawPost: unknown): AreaVerdeMarker | null => {
+  if (!rawPost || typeof rawPost !== "object") return null
+
+  const post = rawPost as Record<string, unknown>
+  const id = Number(post.id ?? post.pk)
+  const latitude = Number(post.local_latitude ?? post.latitude ?? post.lat)
+  const longitude = Number(post.local_longitude ?? post.longitude ?? post.lon)
+  const titulo = typeof post.titulo === "string" ? post.titulo.trim() : undefined
+  const modoAcesso = typeof post.modo_acesso === "string" ? post.modo_acesso.trim() : undefined
+  const descricao = typeof post.descricao === "string" ? post.descricao.trim() : undefined
+  const imagemUrl = typeof post.imagem_url === "string" ? post.imagem_url : undefined
+
+  if (!Number.isFinite(id) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null
+  }
+
+  if (!titulo || !modoAcesso) return null
+
+  return {
+    id,
+    latitude,
+    longitude,
+    titulo,
+    modoAcesso,
+    descricao: descricao && descricao.length > 0 ? descricao : undefined,
+    imagemUrl,
+  }
+}
+
 const parseHeatmapResponse = (
   payload: unknown,
 ): { points: HeatmapPoint[]; isValidPayload: boolean } => {
@@ -153,23 +193,6 @@ const getHeatmapRadius = (latitudeDelta: number): number => {
   return Math.min(MAX_HEATMAP_RADIUS, Math.max(MIN_HEATMAP_RADIUS, Math.round(radius)))
 }
 
-/**
- * Sample heatmap data for different filter types
- * In production, this would come from an API
- */
-const SAMPLE_HEATMAP_DATA: HeatmapPoint[] = [
-  { latitude: -23.483134, longitude: -46.500682, weight: 1.0 },
-  { latitude: -23.484134, longitude: -46.501682, weight: 0.8 },
-  { latitude: -23.482134, longitude: -46.499682, weight: 0.6 },
-  { latitude: -23.485134, longitude: -46.502682, weight: 0.9 },
-  { latitude: -23.481134, longitude: -46.498682, weight: 0.7 },
-]
-
-const AREAS_VERDES_HEATMAP_DATA: HeatmapPoint[] = [
-  { latitude: -23.483134, longitude: -46.500682, weight: 0.9 },
-  { latitude: -23.485134, longitude: -46.502682, weight: 1.0 },
-]
-
 // ============================================================================
 // Component
 // ============================================================================
@@ -183,29 +206,23 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
   const [currentAction, setCurrentAction] = useState<ActionType | undefined>(undefined)
   const [activeFilter, setActiveFilter] = useState<FilterType>("poluicao")
   const [region, setRegion] = useState<Region>(INITIAL_REGION)
-  const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>(SAMPLE_HEATMAP_DATA)
+  const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>([])
+  const [areasVerdesData, setAreasVerdesData] = useState<AreaVerdeMarker[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [selectedArea, setSelectedArea] = useState<AreaVerdeMarker | null>(null)
 
-  const hasHeatmapPoints = heatmapData.length > 0
   const heatmapRadius = useMemo(
     () => getHeatmapRadius(region.latitudeDelta),
     [region.latitudeDelta],
   )
+  const showHeatmap = activeFilter === "poluicao" && heatmapData.length > 0
+  const showAreaMarkers = activeFilter === "areas-verdes" && areasVerdesData.length > 0
 
   // Request location permission on mount
   useEffect(() => {
     requestLocationPermission()
   }, [])
-
-  // Fetch heatmap data when filter changes
-  useEffect(() => {
-    if (activeFilter === "poluicao") {
-      fetchHeatmapData()
-    } else {
-      updateHeatmapForFilter(activeFilter)
-    }
-  }, [activeFilter])
 
   /**
    * Request foreground location permissions
@@ -222,25 +239,9 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
   }
 
   /**
-   * Update heatmap data based on selected filter
-   */
-  const updateHeatmapForFilter = (filter: FilterType): void => {
-    switch (filter) {
-      case "poluicao":
-        setHeatmapData(SAMPLE_HEATMAP_DATA)
-        break
-      case "areas-verdes":
-        setHeatmapData(AREAS_VERDES_HEATMAP_DATA)
-        break
-      default:
-        setHeatmapData(SAMPLE_HEATMAP_DATA)
-    }
-  }
-
-  /**
    * Fetch heatmap data from API for poluição sonora
    */
-  const fetchHeatmapData = async (): Promise<void> => {
+  const fetchHeatmapData = useCallback(async (): Promise<void> => {
     try {
       const response = await api.getHeatmapData()
 
@@ -250,20 +251,53 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
         if (isValidPayload) {
           setHeatmapData(points)
         } else {
-          console.warn("Heatmap API returned an invalid payload. Falling back to sample data.")
-          setHeatmapData(SAMPLE_HEATMAP_DATA)
+          console.warn("Heatmap API returned an invalid payload. Clearing heatmap overlay.")
+          setHeatmapData([])
         }
       } else {
         console.error("Failed to fetch heatmap data:", response.kind)
-        // Fallback to sample data if API fails
-        setHeatmapData(SAMPLE_HEATMAP_DATA)
+        setHeatmapData([])
       }
     } catch (error) {
       console.error("Error fetching heatmap data:", error)
-      // Fallback to sample data on error
-      setHeatmapData(SAMPLE_HEATMAP_DATA)
+      setHeatmapData([])
     }
-  }
+  }, [])
+
+  const fetchAreasVerdesData = useCallback(async (): Promise<void> => {
+    try {
+      const response = await api.getAreasVerdes()
+
+      if (response.kind === "ok") {
+        const normalized = response.data
+          .map(normalizeAreaVerdePost)
+          .filter((post): post is AreaVerdeMarker => post !== null)
+
+        setAreasVerdesData(normalized)
+        setSelectedArea((current) => {
+          if (!current) return null
+          return normalized.find((post) => post.id === current.id) ?? null
+        })
+      } else {
+        console.error("Failed to fetch áreas verdes data:", response.kind)
+        setAreasVerdesData([])
+        setSelectedArea(null)
+      }
+    } catch (error) {
+      console.error("Error fetching áreas verdes data:", error)
+      setAreasVerdesData([])
+      setSelectedArea(null)
+    }
+  }, [])
+
+  // Fetch map overlays when filter changes
+  useEffect(() => {
+    if (activeFilter === "poluicao") {
+      fetchHeatmapData()
+    } else {
+      fetchAreasVerdesData()
+    }
+  }, [activeFilter, fetchAreasVerdesData, fetchHeatmapData])
 
   /**
    * Search for location using OpenStreetMap Nominatim API
@@ -385,7 +419,13 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
    * Handle filter button press
    */
   const handleFilterPress = (filter: FilterType): void => {
+    if (filter === activeFilter) return
+
     setActiveFilter(filter)
+
+    if (filter !== "areas-verdes") {
+      setSelectedArea(null)
+    }
   }
 
   /**
@@ -396,6 +436,14 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
     if (activeFilter === "poluicao") {
       fetchHeatmapData()
     }
+  }
+
+  const handleAreaVerdeSubmitSuccess = (): void => {
+    fetchAreasVerdesData()
+  }
+
+  const handleAreaDetailsClose = (): void => {
+    setSelectedArea(null)
   }
 
   /**
@@ -472,7 +520,7 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
           onRegionChangeComplete={setRegion}
           accessibilityLabel="Mapa de calor interativo"
         >
-          {hasHeatmapPoints && (
+          {showHeatmap && (
             <Heatmap
               points={heatmapData}
               radius={heatmapRadius}
@@ -480,6 +528,17 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
               opacity={HEATMAP_OPACITY}
             />
           )}
+
+          {showAreaMarkers &&
+            areasVerdesData.map((area) => (
+              <Marker
+                key={area.id.toString()}
+                coordinate={{ latitude: area.latitude, longitude: area.longitude }}
+                title={area.titulo}
+                description={area.modoAcesso}
+                onPress={() => setSelectedArea(area)}
+              />
+            ))}
         </MapView>
 
         {/* Search Bar */}
@@ -553,6 +612,13 @@ export const MapScreen: FC<DemoTabScreenProps<"DemoMap">> = function MapScreen(_
       <AreasVerdesModal
         visible={isModalVisible && currentAction === "area-verde"}
         onClose={closeModal}
+        onSuccess={handleAreaVerdeSubmitSuccess}
+      />
+
+      <AreaVerdeDetailsModal
+        visible={selectedArea !== null}
+        area={selectedArea}
+        onClose={handleAreaDetailsClose}
       />
     </Screen>
   )

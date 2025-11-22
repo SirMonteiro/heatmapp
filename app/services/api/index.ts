@@ -21,6 +21,7 @@ import type {
   AudioSubmissionResponse,
   AreaVerdeSubmissionRequest,
   AreaVerdeSubmissionResponse,
+  AreaVerdePost,
   HeatmapDataResponse,
 } from "@/services/api/types"
 
@@ -395,6 +396,13 @@ export class Api {
     return this.request<HeatmapDataResponse>({
       method: "get",
       url: "posts_ruido/",
+    })
+  }
+
+  async getAreasVerdes(): Promise<ApiResult<AreaVerdePost[]>> {
+    return this.request<AreaVerdePost[]>({
+      method: "get",
+      url: "posts_areas/",
     })
   }
 
