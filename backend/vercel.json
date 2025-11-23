@@ -24,5 +24,11 @@
       "src": "/(.*)",
       "dest": "heatmapp_backend/wsgi.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "cron/reset-streaks/",
+      "schedule": "0 0 * * *"
+    }
   ]
 }
