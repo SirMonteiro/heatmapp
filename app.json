@@ -11,7 +11,9 @@
   },
   "newArchEnabled": true,
   "jsEngine": "hermes",
-  "assetBundlePatterns": ["**/*"],
+  "assetBundlePatterns": [
+    "**/*"
+  ],
   "android": {
     "icon": "./assets/images/app-icon-android-legacy.png",
     "package": "health.heatmapp",
@@ -21,7 +23,9 @@
     },
     "allowBackup": false,
     "edgeToEdgeEnabled": true,
-    "permissions": ["android.permission.RECORD_AUDIO"]
+    "permissions": [
+      "android.permission.RECORD_AUDIO"
+    ]
   },
   "ios": {
     "icon": "./assets/images/app-icon-ios.png",
@@ -53,6 +57,12 @@
         }
       }
     ],
+    [
+      "expo-audio",
+      {
+        "microphonePermission": "Permitir que o Heatmapp acesse o microfone para medir a poluição sonora."
+      }
+    ],
     "expo-build-properties"
   ],
   "experiments": {
@@ -61,6 +71,9 @@
   "extra": {
     "ignite": {
       "version": "11.2.0"
+    },
+    "eas": {
+      "projectId": "8f5568fd-5e0b-4752-b0d8-ef1766552d2c"
     }
   }
 }

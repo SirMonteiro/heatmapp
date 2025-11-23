@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native"
+import { requestRecordingPermissionsAsync } from "expo-audio"
 import * as Location from "expo-location"
 import Ionicons from "@expo/vector-icons/Ionicons"
 import RNSoundLevel from "react-native-sound-level"
@@ -16,9 +17,9 @@ import { Button } from "@/components/Button"
 import { Icon } from "@/components/Icon"
 import { Text } from "@/components/Text"
 import { api } from "@/services/api"
+import { UserData } from "@/services/api/types"
 import { useAppTheme } from "@/theme/context"
 import type { ThemedStyle } from "@/theme/types"
-import { UserData } from "@/services/api/types"
 
 interface PoluicaoSonoraModalProps {
   visible: boolean
@@ -28,6 +29,11 @@ interface PoluicaoSonoraModalProps {
 
 const RECORDING_DURATION_MS = 10000 // 10 seconds
 const RECORDING_DURATION_SECONDS = RECORDING_DURATION_MS / 1000
+
+const ensureMicrophonePermission = async (): Promise<boolean> => {
+  const { granted } = await requestRecordingPermissionsAsync()
+  return granted
+}
 
 export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   visible,
@@ -45,17 +51,13 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   const decibelReadingsRef = useRef<number[]>([])
 
   const [user, setUser] = useState<UserData | null>(null)
-  const [loadingUser, setLoadingUser] = useState<boolean>(true)
-
   const loadUser = useCallback(async () => {
-    setLoadingUser(true)
     const res = await api.getCurrentUser()
     if (res.kind === "ok") setUser(res.data)
     else {
       console.warn("Conta: não foi possível carregar current_user", res)
       setUser(null)
     }
-    setLoadingUser(false)
   }, [])
 
   useEffect(() => {
@@ -86,6 +88,14 @@ export const PoluicaoSonoraModal: FC<PoluicaoSonoraModalProps> = ({
   const startRecording = async (): Promise<void> => {
     try {
       if (__DEV__) console.log("Requesting microphone permission... started")
+      const hasPermission = await ensureMicrophonePermission()
+      if (!hasPermission) {
+        Alert.alert(
+          "Permissão necessária",
+          "O acesso ao microfone é obrigatório para registrar a poluição sonora.",
+        )
+        return
+      }
       // Reset states
       setCurrentDecibel(null)
       setAverageDecibel(null)

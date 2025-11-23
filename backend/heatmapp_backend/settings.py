@@ -14,21 +14,35 @@ from pathlib import Path
 import os
 from urllib.parse import urlparse
 
+import environ
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# ---------------------------------------------------------------------------
+# Environment configuration
+# ---------------------------------------------------------------------------
+env = environ.Env(
+    DEBUG=(bool, True),
+)
+
+ENV_FILE = BASE_DIR / ".env"
+if ENV_FILE.exists():
+    env.read_env(ENV_FILE)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-2&6-l%rownk=&oeyyth$65rf6g&i2+#edvt+jlt^48o5y*7jp*')
+SECRET_KEY = env("SECRET_KEY", default='django-insecure-2&6-l%rownk=&oeyyth$65rf6g&i2+#edvt+jlt^48o5y*7jp*')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = env.bool('DEBUG', default=True)
 
 # coloca o ip aqui
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', "*,127.0.0.1,.vercel.app").split(',')
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=["*", "127.0.0.1", ".vercel.app"])
 
 
 
@@ -71,10 +85,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8081",  # react local...
-
-]
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS",
+    default=["http://localhost:8081"],
+)
 
 
 ROOT_URLCONF = 'heatmapp_backend.urls'
@@ -159,12 +173,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles_build" / "static"
 
 
 # Supabase configuration for Área Verde uploads
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://shdpkrdgsvhzpdlzrogv.supabase.co")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "sb_secret_pxI5KZvqXGAnjP5aL75Wyw_51WB54Si")
-SUPABASE_AREAS_BUCKET = os.environ.get("SUPABASE_AREAS_BUCKET", "areasVerdesBucket")
-SUPABASE_PUBLIC_URL = os.environ.get(
+SUPABASE_URL = env("SUPABASE_URL", default="")
+SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", default="")
+SUPABASE_AREAS_BUCKET = env("SUPABASE_AREAS_BUCKET", default="areasVerdesBucket")
+SUPABASE_PUBLIC_URL = env(
     "SUPABASE_PUBLIC_URL",
-    f"{SUPABASE_URL.rstrip('/')}" + "/storage/v1/object/public" if SUPABASE_URL else "",
+    default=(f"{SUPABASE_URL.rstrip('/')}" + "/storage/v1/object/public") if SUPABASE_URL else "",
 )
 
 # Default primary key field type

@@ -14,12 +14,12 @@ def _get_supabase_client() -> Client:
     if _supabase_client is not None:
         return _supabase_client
 
-    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
         raise ImproperlyConfigured(
-            "Supabase credentials are not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY."
+            "Supabase credentials are not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
         )
 
-    _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+    _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
     return _supabase_client
 
 
