@@ -14,7 +14,7 @@ export function BannerLoja() {
           					<Text style={styles.contribuaComOs}>{`Contribua com os mapas, receba `}</Text>
           					<Text style={styles.moedas}>moedas</Text> {"\n"}
           					<Text style={styles.contribuaComOs}>e desbloqueie {"\n"}
-                                funcionalidades {"\n"}temporárias!</Text>
+                                funcionalidades e{"\n"}ícones!</Text>
         				</Text>
         				<Image source={require("../../assets/images/boyWithACoin.png")}style={styles.image} 
 						 resizeMode="cover" />

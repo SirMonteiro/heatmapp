@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
+import { useFocusEffect } from "@react-navigation/native"
 import { View, Text, StyleSheet, Image, ScrollView, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
@@ -63,6 +64,24 @@ export function Loja() {
       mounted = false
     }
   }, [])
+
+  useFocusEffect(
+  useCallback(() => {
+    let mounted = true
+
+    async function reloadUser() {
+      const res = await api.getCurrentUser()
+      if (!mounted) return
+      setMoedas(res.kind === "ok" ? res.data.moedas ?? 0 : 0)
+    }
+
+    reloadUser()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+)
 
   async function handleBuy(iconeId: number) {
     try {
