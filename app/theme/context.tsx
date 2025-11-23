@@ -79,8 +79,9 @@ export const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
    * systemColorScheme is the value from the device. If undefined, we fall back to "light"
    */
   const themeContext: ImmutableThemeContextModeT = useMemo(() => {
-    const t = initialContext || themeScheme || (!!systemColorScheme ? systemColorScheme : "light")
-    return t === "dark" ? "dark" : "light"
+    // const t = initialContext || themeScheme || (!!systemColorScheme ? systemColorScheme : "light")
+    // return t === "dark" ? "dark" : "light"
+    return "light"
   }, [initialContext, themeScheme, systemColorScheme])
 
   const navigationTheme: NavTheme = useMemo(() => {
