@@ -28,7 +28,7 @@
   "crons": [
     {
       "path": "/cron/reset-streaks/",
-      "schedule": "0 0 * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
